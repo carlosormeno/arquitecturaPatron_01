@@ -1,0 +1,1 @@
+# arquitecturaPatron_01
