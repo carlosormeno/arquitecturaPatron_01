@@ -1,0 +1,93 @@
+<configuration>
+    <!-- ✅ Tu configuración actual + OpenTelemetry -->
+    <appender name="JSON-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--<file>../logs/command-service/command.json</file>-->
+        <file>/app/logs/query-service/query.json</file>
+        <!-- ✅ Añadido rolling policy para manejar archivos grandes -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!--<fileNamePattern>../logs/command-service/command.%d{yyyy-MM-dd}.json</fileNamePattern>-->
+            <fileNamePattern>/app/logs/query-service/query.%d{yyyy-MM-dd}.json</fileNamePattern>
+            <!--<maxFileSize>100MB</maxFileSize>-->
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp />
+                <logLevel />
+                <loggerName />
+                <threadName />
+                <message />
+                <stackTrace />
+                <mdc />
+                <!-- ✅ Añadidos campos de OpenTelemetry -->
+                <provider class="net.logstash.logback.composite.GlobalCustomFieldsJsonProvider">
+                    <customFields>{
+                        "servicio": "query-service",
+                        "version": "1.0.0",
+                        "environment": "${spring.profiles.active:-default}"
+                        }</customFields>
+                </provider>
+                <!-- ✅ Trace context de OpenTelemetry -->
+                <pattern>
+                    <pattern>
+                        {
+                        "traceId": "%X{traceId:-}",
+                        "spanId": "%X{spanId:-}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- ✅ Console appender para desarrollo -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp />
+                <logLevel />
+                <loggerName />
+                <message />
+                <mdc />
+                <pattern>
+                    <pattern>
+                        {
+                        "traceId": "%X{traceId:-}",
+                        "spanId": "%X{spanId:-}",
+                        "servicio": "query-service"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- ✅ OpenTelemetry appender para correlación -->
+
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+    </appender>
+
+    <!-- ✅ Profile para desarrollo -->
+    <springProfile name="development">
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="JSON-FILE" />
+            <appender-ref ref="OTEL" />
+        </root>
+    </springProfile>
+
+    <!-- ✅ Profile por defecto (incluye producción) -->
+    <springProfile name="!development">
+        <root level="INFO">
+            <appender-ref ref="JSON-FILE" />
+            <appender-ref ref="OTEL" />
+        </root>
+    </springProfile>
+
+    <!-- ✅ Loggers específicos para reducir noise -->
+    <logger name="io.opentelemetry" level="WARN"/>
+    <logger name="io.grpc" level="WARN"/>
+    <logger name="okhttp3" level="ERROR"/>
+</configuration>

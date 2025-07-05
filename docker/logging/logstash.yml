@@ -1,0 +1,24 @@
+# logging/logstash.yml
+# Configuración para habilitar métricas en Logstash
+
+http.host: "0.0.0.0"
+http.port: 9600
+
+# Habilitar métricas de monitoreo
+monitoring.enabled: true
+
+# Configuración de logs
+log.level: info
+path.logs: /usr/share/logstash/logs
+
+# Configuración de datos
+path.data: /usr/share/logstash/data
+
+# Configuración del pipeline
+pipeline.workers: 2
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+
+# Configuración de JVM
+config.reload.automatic: true
+config.reload.interval: 3s

@@ -1,0 +1,39 @@
+<h2 *ngIf="modoEdicion">Editar Producto</h2>
+<h2 *ngIf="!modoEdicion">Crear Producto</h2>
+
+<form (ngSubmit)="guardar()" #productoForm="ngForm">
+  <div>
+    <label>Nombre:</label>
+    <input
+      name="nombre"
+      [(ngModel)]="producto.nombre"
+      required
+      #nombre="ngModel"
+    />
+    <div *ngIf="nombre.invalid && nombre.touched" style="color: red;">
+      El nombre es obligatorio.
+    </div>
+  </div>
+
+  <div>
+    <label>Precio:</label>
+    <input
+      name="precio"
+      type="number"
+      [(ngModel)]="producto.precio"
+      required
+      min="0.01"
+      #precio="ngModel"
+    />
+    <div *ngIf="precio.invalid && precio.touched" style="color: red;">
+      El precio debe ser mayor a 0.
+    </div>
+  </div>
+
+  <button type="submit" [disabled]="productoForm.invalid">
+    {{ modoEdicion ? 'Actualizar' : 'Crear' }}
+  </button>
+  <button type="button" (click)="cancelar()">Cancelar</button>
+</form>
+
+

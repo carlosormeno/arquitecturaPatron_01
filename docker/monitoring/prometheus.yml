@@ -1,0 +1,150 @@
+#global:
+#  scrape_interval: 15s
+
+#scrape_configs:
+#  - job_name: 'command-service'
+#    metrics_path: '/actuator/prometheus'
+#    static_configs:
+#      - targets: ['host.docker.internal:8081']
+#  - job_name: 'query-service'
+#    metrics_path: '/actuator/prometheus'
+#    static_configs:
+#      - targets: ['host.docker.internal:8082']
+#  - job_name: 'otel-collector'
+#    static_configs:
+#      - targets: ['otel-collector:9464']
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert-rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  - job_name: 'command-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['comando-microservicio:8081']
+
+  - job_name: 'query-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['consulta-microservicio:8082']
+
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:9464']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: 'kong'
+    static_configs:
+      - targets: ['kong:8001']
+    metrics_path: '/metrics'
+
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+
+#  - job_name: 'kafka-jmx'
+#    static_configs:
+#      - targets: ['kafka-jmx-exporter:8084']
+#    scrape_interval: 30s
+#    metrics_path: '/metrics'
+#    scrape_timeout: 10s
+
+  # ===== KAFKA HYBRID MONITORING =====
+
+  # Kafka Exporter - Métricas de negocio (consumer lag, topics)
+  - job_name: 'kafka-business'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scrape_timeout: 10s
+
+  # JMX Exporter - Métricas técnicas (JVM, controller, performance)  
+  - job_name: 'kafka-technical'
+    static_configs:
+      - targets: ['kafka-jmx-exporter:9309']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    scrape_timeout: 10s
+
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    metrics_path: '/metrics'
+
+  # ===== LOGGING STACK - LOKI =====
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+    metrics_path: '/metrics'
+
+  - job_name: 'promtail'
+    static_configs:
+      - targets: ['promtail:9080']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # ===== LOGGING STACK - ELK =====
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch-exporter:9114']
+#      - targets: ['elasticsearch:9200']
+    metrics_path: 'metrics'
+#    scrape_interval: 30s
+
+#  - job_name: 'logstash'
+#    static_configs:
+#      - targets: ['logstash:9600']
+#    metrics_path: '/_node/stats'
+#    scrape_interval: 30s
+
+#  - job_name: 'kibana'
+#    static_configs:
+#      - targets: ['kibana:5601']
+#    metrics_path: '/api/status'
+#    scrape_interval: 30s
+
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://kong:8000/health
+        - http://grafana:3000/api/health
+        - http://comando-microservicio:8081/actuator/health
+        - http://consulta-microservicio:8082/actuator/health
+        - http://loki:3100/ready
+        - http://elasticsearch:9200/_cluster/health
+        - http://kibana:5601/api/status          # ✅ Kibana health via blackbox
+        - http://logstash:9600/_node/stats       # ✅ Logstash stats via blackbox
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

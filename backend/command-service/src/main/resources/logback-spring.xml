@@ -1,0 +1,147 @@
+<configuration>
+    <!-- ✅ Tu configuración actual + OpenTelemetry -->
+    <appender name="JSON-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--<file>../logs/command-service/command.json</file>-->
+        <file>/app/logs/command-service/command.json</file>
+        <!-- ✅ Añadido rolling policy para manejar archivos grandes -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!--<fileNamePattern>../logs/command-service/command.%d{yyyy-MM-dd}.json</fileNamePattern>-->
+            <fileNamePattern>/app/logs/command-service/command.%d{yyyy-MM-dd}.json</fileNamePattern>
+            <!--<maxFileSize>100MB</maxFileSize>-->
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp />
+                <logLevel />
+                <loggerName />
+                <threadName />
+                <message />
+                <stackTrace />
+                <mdc />
+                <!-- ✅ Añadidos campos de OpenTelemetry -->
+                <provider class="net.logstash.logback.composite.GlobalCustomFieldsJsonProvider">
+                    <customFields>{
+                        "servicio": "command-service",
+                        "version": "1.0.0",
+                        "environment": "${spring.profiles.active:-default}"
+                        }</customFields>
+                </provider>
+                <!-- ✅ Trace context de OpenTelemetry -->
+                <pattern>
+                    <pattern>
+                        {
+                        "traceId": "%X{traceId:-}",
+                        "spanId": "%X{spanId:-}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- ✅ NUEVO: Appender específico para logs del frontend -->
+    <appender name="JSON-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <!--<file>../logs/frontend/frontend.json</file>-->
+        <file>/app/logs/frontend/frontend.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!--<fileNamePattern>../logs/command-service/command.%d{yyyy-MM-dd}.json</fileNamePattern>-->
+            <fileNamePattern>/app/logs/frontend/frontend.%d{yyyy-MM-dd}.json</fileNamePattern>
+            <!--<maxFileSize>100MB</maxFileSize>-->
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp />
+                <logLevel />
+                <loggerName />
+                <threadName />
+                <message />
+                <stackTrace />
+                <mdc />
+                <provider class="net.logstash.logback.composite.GlobalCustomFieldsJsonProvider">
+                    <customFields>{"servicio":"frontend-angular"}</customFields>
+                </provider>
+                <pattern>
+                    <pattern>
+                        {
+                        "traceId": "%X{traceId:-}",
+                        "spanId": "%X{spanId:-}",
+                        "userId": "%X{userId:-}",
+                        "correlationId": "%X{correlationId:-}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- ✅ Console appender para desarrollo -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp />
+                <logLevel />
+                <loggerName />
+                <message />
+                <mdc />
+                <pattern>
+                    <pattern>
+                        {
+                        "traceId": "%X{traceId:-}",
+                        "spanId": "%X{spanId:-}",
+                        "servicio": "command-service"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- ✅ Console para desarrollo -->
+    <appender name="CONSOLEFRONT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ✅ OpenTelemetry appender para correlación
+
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+    </appender>
+
+    -->
+
+    <!-- ✅ Logger específico para frontend logs -->
+    <logger name="frontend-logs" level="DEBUG" additivity="false">
+        <appender-ref ref="FRONTEND-JSON-FILE" />
+        <appender-ref ref="CONSOLEFRONT" />
+    </logger>
+
+    <!-- ✅ Profile para desarrollo -->
+    <springProfile name="development">
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="JSON-FILE" />
+            <appender-ref ref="FRONTEND-JSON-FILE" />
+            <!--<appender-ref ref="OTEL" />-->
+        </root>
+    </springProfile>
+
+    <!-- ✅ Profile por defecto (incluye producción) -->
+    <springProfile name="!development">
+        <root level="INFO">
+            <appender-ref ref="JSON-FILE" />
+            <appender-ref ref="FRONTEND-JSON-FILE" />
+            <!--<appender-ref ref="OTEL" />-->
+        </root>
+    </springProfile>
+
+    <!-- ✅ Loggers específicos para reducir noise -->
+    <logger name="io.opentelemetry" level="WARN"/>
+    <logger name="io.grpc" level="WARN"/>
+    <logger name="okhttp3" level="ERROR"/>
+</configuration>

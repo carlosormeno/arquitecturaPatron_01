@@ -1,0 +1,149 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: command-service
+
+  # ✅ Configuración de perfiles activos
+  #profiles:
+  #  active: dev
+
+  # ✅ Database configuration apuntando a contenedor PostgreSQL
+  datasource:
+    url: jdbc:postgresql://postgres:5432/productos_db
+    username: admin
+    password: admin123
+    driver-class-name: org.postgresql.Driver
+
+  # ✅ JPA configuration para desarrollo
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true  # ✅ Activado para debugging en desarrollo
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        use_sql_comments: true
+    open-in-view: false
+
+  # ✅ Kafka configuration apuntando a contenedor
+  kafka:
+    bootstrap-servers: kafka:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # Optimizaciones para desarrollo
+        acks: 1
+        retries: 3
+        batch.size: 16384
+        linger.ms: 5
+
+
+  # ✅ Spring lifecycle
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  # ✅ Actuator security para desarrollo (más permisivo)
+  security:
+    user:
+      name: admin
+      password: admin123
+      roles: ACTUATOR
+
+# ✅ JWT Configuration (igual que tu configuración actual)
+jwt:
+  secret: ${JWT_SECRET:Sup3r_S3cur3_JWT_K3y_F0r_Pr0duct10n_2024_M1n1mum_32_Ch4r4ct3rs!}
+  expiration: ${JWT_EXPIRATION:3600000}
+
+# ✅ Observability Configuration para desarrollo
+management:
+  security:
+    enabled: false
+  endpoints:
+    web:
+      exposure:
+        # ✅ Más endpoints expuestos en desarrollo para debugging
+        include: "health,info,metrics,prometheus,tracing,loggers,env,beans,configprops"
+        #exclude: ""
+        #exclude: "env,configprops"
+      #base-path: /actuator
+  endpoint:
+    health:
+      show-details: always  # ✅ Mostrar detalles completos en desarrollo
+      #show-details: when_authorized
+    metrics:
+      access: unrestricted
+    prometheus:
+      access: unrestricted
+    loggers:
+      access: unrestricted  # ✅ Permitir cambio de log levels en runtime
+
+  # ✅ OpenTelemetry Tracing para desarrollo
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+
+  # ✅ W3C Trace Context
+  propagation:
+    type: w3c
+
+  # ✅ OTLP Export Configuration apuntando a contenedor
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces
+      timeout: 10s
+      compression: gzip
+      headers:
+        service-name: command-service
+        service-version: 1.0.0
+        environment: development
+
+  # ✅ Prometheus Metrics
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# ✅ Structured Logging Configuration para desarrollo
+logging:
+  level:
+    root: INFO
+    com.ejemplo.producto: DEBUG  # ✅ Tu package en DEBUG
+
+    # ✅ Spring frameworks en INFO para desarrollo
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.springframework.kafka: INFO
+    org.springframework.transaction: INFO
+
+    # ✅ Database logging más verbose en desarrollo
+    org.springframework.jdbc: INFO
+    org.hibernate: WARN
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+    # ✅ OpenTelemetry controlado pero no silenciado
+    io.opentelemetry: INFO
+    io.opentelemetry.exporter: WARN
+    io.grpc: WARN
+    okhttp3: WARN
+
+  pattern:
+    # ✅ Pattern con trace context (igual que tu configuración)
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    # ✅ Pattern para archivos (para tu logback-spring.xml)
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+  # ✅ File configuration para logs en contenedor
+  file:
+    name: /app/logs/application.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 1GB
+
+# ✅ Configuraciones adicionales para desarrollo
+debug: false  # ✅ Debug mode off pero con logging detallado
+

@@ -1,0 +1,161 @@
+# monitoring/kafka-jmx-bitnami.yml
+# Configuración optimizada para Bitnami JMX Exporter 1.3
+
+# JMX connection settings
+hostPort: kafka:9999
+jmxUrl: service:jmx:rmi:///jndi/rmi://kafka:9999/jmxrmi
+ssl: false
+lowercaseOutputName: false
+lowercaseOutputLabelNames: false
+
+# Optimización para reducir cardinality
+whitelistObjectNames:
+  - "kafka.server:type=BrokerTopicMetrics,name=*"
+  - "kafka.server:type=BrokerTopicMetrics,name=*,topic=*"
+  - "kafka.server:type=ReplicaManager,name=*"
+  - "kafka.server:type=KafkaRequestHandlerPool,name=*"
+  - "kafka.network:type=RequestMetrics,name=*,request=*"
+  - "kafka.network:type=SocketServer,name=*"
+  - "kafka.log:type=LogFlushStats,name=*"
+  - "kafka.log:type=LogManager,name=*"
+  - "kafka.controller:type=KafkaController,name=*"
+  - "kafka.controller:type=ControllerEventManager,name=*"
+  - "kafka.server:type=SessionExpireListener,name=*"
+  - "java.lang:type=Memory"
+  - "java.lang:type=GarbageCollector,name=*"
+  - "java.lang:type=OperatingSystem"
+
+rules:
+  # ===== KAFKA BROKER CRÍTICAS =====
+  - pattern: 'kafka.controller<type=KafkaController, name=(OfflinePartitionsCount|ActiveControllerCount|GlobalPartitionCount|GlobalTopicCount)><>Value'
+    name: kafka_controller_$1
+    type: GAUGE
+    help: "Kafka controller critical metric: $1"
+
+  - pattern: 'kafka.server<type=ReplicaManager, name=(UnderReplicatedPartitions|PartitionCount|LeaderCount|UnderMinIsrPartitionCount)><>Value'
+    name: kafka_server_replica_manager_$1
+    type: GAUGE
+    help: "Kafka replica manager: $1"
+
+  - pattern: 'kafka.server<type=ReplicaManager, name=(IsrShrinksPerSec|IsrExpandsPerSec)><>Count'
+    name: kafka_server_replica_manager_$1_total
+    type: COUNTER
+    help: "Kafka replica manager: $1 total"
+
+  # ===== KAFKA BROKER TOPIC METRICS =====
+  - pattern: 'kafka.server<type=BrokerTopicMetrics, name=(MessagesInPerSec|BytesInPerSec|BytesOutPerSec), topic=(.+)><>Count'
+    name: kafka_server_brokertopicmetrics_$1_total
+    type: COUNTER
+    labels:
+      topic: "$2"
+    help: "Kafka broker topic metric $1 total for topic $2"
+
+  - pattern: 'kafka.server<type=BrokerTopicMetrics, name=(MessagesInPerSec|BytesInPerSec|BytesOutPerSec)><>Count'
+    name: kafka_server_brokertopicmetrics_$1_total
+    type: COUNTER
+    help: "Kafka broker topic metric $1 total across all topics"
+
+  - pattern: 'kafka.server<type=BrokerTopicMetrics, name=(MessagesInPerSec|BytesInPerSec|BytesOutPerSec), topic=(.+)><>OneMinuteRate'
+    name: kafka_server_brokertopicmetrics_$1_rate
+    type: GAUGE
+    labels:
+      topic: "$2"
+    help: "Kafka broker topic metric $1 rate per minute for topic $2"
+
+  # ===== KAFKA LOG METRICS =====
+  - pattern: 'kafka.log<type=Log, name=Size, topic=(.+), partition=(.+)><>Value'
+    name: kafka_log_size_bytes
+    type: GAUGE
+    labels:
+      topic: "$1"
+      partition: "$2"
+    help: "Kafka log size in bytes"
+
+  - pattern: 'kafka.log<type=LogFlushStats, name=LogFlushRateAndTimeMs><>Count'
+    name: kafka_log_flush_total
+    type: COUNTER
+    help: "Total number of log flushes"
+
+  - pattern: 'kafka.log<type=LogFlushStats, name=LogFlushRateAndTimeMs><>Mean'
+    name: kafka_log_flush_time_ms
+    type: GAUGE
+    help: "Average log flush time in milliseconds"
+
+  # ===== KAFKA REPLICA MANAGER =====
+  - pattern: 'kafka.server<type=ReplicaManager, name=(UnderReplicatedPartitions|PartitionCount|LeaderCount|IsrShrinksPerSec|IsrExpandsPerSec)><>Value'
+    name: kafka_server_replica_manager_$1
+    type: GAUGE
+    help: "Kafka replica manager $1"
+
+  # ===== KAFKA REQUEST METRICS =====
+  - pattern: 'kafka.network<type=RequestMetrics, name=RequestsPerSec, request=(.+)><>Count'
+    name: kafka_network_requests_total
+    type: COUNTER
+    labels:
+      request: "$1"
+    help: "Total number of requests by type"
+
+  - pattern: 'kafka.network<type=RequestMetrics, name=TotalTimeMs, request=(.+)><>Mean'
+    name: kafka_network_request_time_ms
+    type: GAUGE
+    labels:
+      request: "$1"
+    help: "Average request time in milliseconds"
+
+  # ===== KAFKA CONTROLLER METRICS =====
+  - pattern: 'kafka.controller<type=KafkaController, name=(OfflinePartitionsCount|ActiveControllerCount)><>Value'
+    name: kafka_controller_$1
+    type: GAUGE
+    help: "Kafka controller $1"
+
+  # ===== KAFKA REQUEST HANDLER POOL =====
+  - pattern: 'kafka.server<type=KafkaRequestHandlerPool, name=RequestHandlerAvgIdlePercent><>OneMinuteRate'
+    name: kafka_server_request_handler_idle_percent
+    type: GAUGE
+    help: "Kafka request handler average idle percentage"
+
+  # ===== JVM MEMORY METRICS =====
+  - pattern: 'java.lang<type=Memory><HeapMemoryUsage>used'
+    name: jvm_memory_heap_used_bytes
+    type: GAUGE
+    help: "JVM heap memory used in bytes"
+
+  - pattern: 'java.lang<type=Memory><HeapMemoryUsage>max'
+    name: jvm_memory_heap_max_bytes
+    type: GAUGE
+    help: "JVM heap memory max in bytes"
+
+  - pattern: 'java.lang<type=Memory><NonHeapMemoryUsage>used'
+    name: jvm_memory_nonheap_used_bytes
+    type: GAUGE
+    help: "JVM non-heap memory used in bytes"
+
+  # ===== JVM GC METRICS =====
+  - pattern: 'java.lang<type=GarbageCollector, name=(.+)><>CollectionCount'
+    name: jvm_gc_collections_total
+    type: COUNTER
+    labels:
+      gc: "$1"
+    help: "Total GC collections"
+
+  - pattern: 'java.lang<type=GarbageCollector, name=(.+)><>CollectionTime'
+    name: jvm_gc_collection_time_ms_total
+    type: COUNTER
+    labels:
+      gc: "$1"
+    help: "Total GC collection time in milliseconds"
+
+  # ===== KAFKA PRODUCER/CONSUMER METRICS =====
+  - pattern: 'kafka.producer<type=producer-metrics, client-id=(.+)><>(.+):'
+    name: kafka_producer_$2
+    type: GAUGE
+    labels:
+      client_id: "$1"
+    help: "Kafka producer metric $2"
+
+  - pattern: 'kafka.consumer<type=consumer-fetch-manager-metrics, client-id=(.+)><>records-lag-max'
+    name: kafka_consumer_lag_max
+    type: GAUGE
+    labels:
+      client_id: "$1"
+    help: "Maximum consumer lag in records"

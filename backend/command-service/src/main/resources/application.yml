@@ -1,0 +1,120 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: command-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/productos_db
+    username: admin
+    password: admin123
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false # ✅ Cambiado a false para reducir logs
+
+
+# ✅ JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:tu-clave-super-segura-de-al-menos-32-caracteres-para-desarrollo}
+  expiration: ${JWT_EXPIRATION:3600000}
+
+# ✅ Observability Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics,prometheus,tracing"
+        exclude: "env,configprops"
+  endpoint:
+    health:
+      show-details: when_authorized
+    metrics:
+      access: unrestricted
+    prometheus:
+      access: unrestricted
+
+  # ✅ OpenTelemetry Tracing
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+
+  # ✅ W3C Trace Context
+  propagation:
+    type: w3c
+
+  # ✅ OTLP Export Configuration
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+      timeout: 10s
+      compression: gzip
+      headers:
+        service-name: command-service
+        service-version: 1.0.0
+
+  # ✅ Prometheus Metrics
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# ✅ Structured Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.ejemplo.producto: DEBUG
+    org.springframework.security: WARN
+
+    # ✅ Reduce OpenTelemetry noise
+    io.opentelemetry: WARN
+    io.opentelemetry.exporter: ERROR
+    io.grpc: WARN
+    okhttp3: ERROR
+
+    # ✅ Database logging
+    org.springframework.jdbc: WARN
+    org.hibernate: WARN
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+---
+# ✅ Development Profile
+spring:
+  config:
+    activate:
+      on-profile: development
+
+management:
+  tracing:
+    sampling:
+      probability: 0.3 # Más sampling en desarrollo
+
+logging:
+  level:
+    com.ejemplo.producto: DEBUG
+    io.opentelemetry: DEBUG
+
+---
+# ✅ Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+
+management:
+  tracing:
+    sampling:
+      probability: 0.05 # Menos sampling en producción
+  endpoints:
+    web:
+      exposure:
+        include: "health,metrics,prometheus"
+
+logging:
+  level:
+    root: WARN
+    com.ejemplo.producto: INFO
+    io.opentelemetry: ERROR
