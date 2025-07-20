@@ -20,20 +20,20 @@ Este proyecto demuestra una **arquitectura de microservicios completa** con toda
 
 | Fase | Docker Compose | Servicios | Propósito | README |
 |------|---------------|-----------|-----------|---------|
-| **Principal** | `docker-compose-inicio.yml` | Portainer, Redes | Orquestación | [📖 README-general.md](README_general.md) |
+| **Principal** | `docker-compose-inicio.yml` | Portainer, Redes | Orquestación | [📖 README-general.md](readme.md) |
 | **Base** | `docker-compose-base.yml` | PostgreSQL, MongoDB, Kafka | Infraestructura | [📖 README-base.md](readme_base.md) |
-| **Observabilidad** | `docker-compose-observability.yml` | Prometheus, Grafana, ELK, Jaeger | Monitoreo | [📖 README-observability.md](README-observability.md) |
-| **Gateway** | `docker-compose-gateway.yml` | Kong, Nginx | API Gateway | [📖 README-gateway.md](README-gateway.md) |
-| **Identidad** | `docker-compose-identity.yml` | Keycloak | SSO/OAuth2 | [📖 README-identity.md](README-identity.md) |
-| **Seguridad** | `docker-compose-security.yml` | SonarQube, ZAP, Snyk, Falco | DevSecOps | [📖 README-security.md](README-security.md) |
-| **Contenido** | `docker-compose-content.yml` | Alfresco Stack | ECM/DMS | [📖 README-content.md](README-content.md) |
-| **Datos** | `docker-compose-dataplatform.yml` | Apache NiFi | ETL/Pipelines | [📖 README-dataplatform.md](README-dataplatform.md) |
-| **Gobierno** | `docker-compose-governance.yml` | DataHub | Data Catalog | [📖 README-governance.md](README-governance.md) |
-| **Workflow** | `docker-compose-workflow.yml` | Apache Airflow | Orquestación | [📖 README-workflow.md](README-workflow.md) |
-| **Reglas** | `docker-compose-business.yml` | GoRules | Business Rules | [📖 README-business.md](README-business.md) |
-| **CI/CD** | `docker-compose-cicd.yml` | Gitea, Jenkins | DevOps | [📖 README-cicd.md](README-cicd.md) |
-| **Registry** | `docker-compose-registry.yml` | Harbor, Nexus | Artefactos | [📖 README-registry.md](README-registry.md) |
-| **Apps** | `docker-compose-apps.yml` | Microservicios, Frontend | Aplicaciones | [📖 README-apps.md](README-apps.md) |
+| **Observabilidad** | `docker-compose-observability.yml` | Prometheus, Grafana, ELK, Jaeger | Monitoreo | [📖 README-observability.md](readme_observability.md) |
+| **Gateway** | `docker-compose-gateway.yml` | Kong, Nginx | API Gateway | [📖 README-gateway.md](readme_gateway.md) |
+| **Identidad** | `docker-compose-identity.yml` | Keycloak | SSO/OAuth2 | [📖 README-identity.md](readme_identity.md) |
+| **Seguridad** | `docker-compose-security.yml` | SonarQube, ZAP, Snyk, Falco | DevSecOps | [📖 README-security.md](readme_security.md) |
+| **Contenido** | `docker-compose-content.yml` | Alfresco Stack | ECM/DMS | [📖 README-content.md](readme_content.md) |
+| **Datos** | `docker-compose-dataplatform.yml` | Apache NiFi | ETL/Pipelines | [📖 README-dataplatform.md](readme_dataplatform.md) |
+| **Gobierno** | `docker-compose-governance.yml` | DataHub | Data Catalog | [📖 README-governance.md](readme_governance.md) |
+| **Workflow** | `docker-compose-workflow.yml` | Apache Airflow | Orquestación | [📖 README-workflow.md](readme_workflow.md) |
+| **Reglas** | `docker-compose-business.yml` | GoRules | Business Rules | [📖 README-business.md](readme_business.md) |
+| **CI/CD** | `docker-compose-cicd.yml` | Gitea, Jenkins | DevOps | [📖 README-cicd.md](readme_cicd.md) |
+| **Registry** | `docker-compose-registry.yml` | Harbor, Nexus | Artefactos | [📖 README-registry.md](readme_registry.md) |
+| **Apps** | `docker-compose-apps.yml` | Microservicios, Frontend | Aplicaciones | [📖 README-apps.md](readme_apps.md) |
 
 # 🐳 Servicios y Versiones por docker-compose
 
