@@ -21,7 +21,7 @@ Este proyecto demuestra una **arquitectura de microservicios completa** con toda
 | Fase | Docker Compose | Servicios | Propósito | README |
 |------|---------------|-----------|-----------|---------|
 | **Principal** | `docker-compose-inicio.yml` | Portainer, Redes | Orquestación | [📖 README-general.md](README_general.md) |
-| **Base** | `docker-compose-base.yml` | PostgreSQL, MongoDB, Kafka | Infraestructura | [📖 README-base.md](README-base.md) |
+| **Base** | `docker-compose-base.yml` | PostgreSQL, MongoDB, Kafka | Infraestructura | [📖 README-base.md](readme_base.md) |
 | **Observabilidad** | `docker-compose-observability.yml` | Prometheus, Grafana, ELK, Jaeger | Monitoreo | [📖 README-observability.md](README-observability.md) |
 | **Gateway** | `docker-compose-gateway.yml` | Kong, Nginx | API Gateway | [📖 README-gateway.md](README-gateway.md) |
 | **Identidad** | `docker-compose-identity.yml` | Keycloak | SSO/OAuth2 | [📖 README-identity.md](README-identity.md) |
