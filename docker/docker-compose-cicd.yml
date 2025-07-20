@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+
+  # ============================================
+  # GITOPS & SOURCE CODE
+  # ============================================
+  gitea:
+    image: gitea/gitea:1.23.1
+    container_name: gitea
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+      - "2222:22"
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=postgres:5432
+      - GITEA__database__NAME=${GITEA_DB_NAME}
+      - GITEA__database__USER=${GITEA_DB_USER}
+      - GITEA__database__PASSWD=${GITEA_DB_PASSWORD}
+      - GITEA__security__SECRET_KEY=${GITEA_SECRET_KEY}
+    volumes:
+      - gitea-data:/data
+      - ./logs/gitea:/data/gitea/log
+    networks:
+      - cicd
+      - backend
+
+  # ============================================
+  # ADVANCED CI/CD PIPELINE
+  # ============================================
+  jenkins:
+    #image: jenkins/jenkins:2.512-lts
+    image: jenkins/jenkins:lts-alpine
+    container_name: jenkins
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+      - "50000:50000"
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx2g -Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt
+      - ./jenkins/casc:/var/jenkins_home/casc_configs
+    networks:
+      - cicd
+      - security
+      - backend
+      - registry
+    user: root
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4g

@@ -1,0 +1,267 @@
+version: "3.9"
+
+services:
+
+# ============================================
+# FASE 10: CONTAINER REGISTRY & ARTIFACTS
+# ============================================
+
+# ============================================
+# HARBOR - CONTAINER REGISTRY
+# ============================================
+  harbor-db:
+    image: postgres:15
+    container_name: harbor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${HARBOR_DB_NAME}
+      POSTGRES_USER: ${HARBOR_DB_USER}
+      POSTGRES_PASSWORD: ${HARBOR_DB_PASSWORD}
+    volumes:
+      - harbor-db-data:/var/lib/postgresql/data
+    networks:
+      - registry
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${HARBOR_DB_USER} -d ${HARBOR_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  harbor-redis:
+    image: redis:7.4-alpine
+    container_name: harbor-redis
+    restart: unless-stopped
+    volumes:
+      - harbor-redis-data:/data
+    networks:
+      - registry
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  harbor-core:
+    image: goharbor/harbor-core:v2.13.1
+    container_name: harbor-core
+    restart: unless-stopped
+    ports:
+      - "8089:8080"
+    environment:
+      CORE_SECRET: ${HARBOR_CORE_SECRET}
+      JOBSERVICE_SECRET: ${HARBOR_JOBSERVICE_SECRET}
+      DATABASE_TYPE: postgresql
+      POSTGRESQL_HOST: harbor-db
+      POSTGRESQL_DATABASE: ${HARBOR_DB_NAME}
+      POSTGRESQL_USERNAME: ${HARBOR_DB_USER}
+      POSTGRESQL_PASSWORD: ${HARBOR_DB_PASSWORD}
+      REDIS_HOST: harbor-redis
+      ADMIN_PASSWORD: ${HARBOR_ADMIN_PASSWORD}
+    volumes:
+      - harbor-data:/data
+    networks:
+      - registry
+      - cicd
+      - backend
+    depends_on:
+      - harbor-db
+      - harbor-redis
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v2.0/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  harbor-jobservice:
+    image: goharbor/harbor-jobservice:v2.13.1
+    container_name: harbor-jobservice
+    restart: unless-stopped
+    environment:
+      CORE_SECRET: ${HARBOR_CORE_SECRET}
+      JOBSERVICE_SECRET: ${HARBOR_JOBSERVICE_SECRET}
+      CORE_URL: http://harbor-core:8080
+      REGISTRY_URL: http://harbor-registry:5000
+    volumes:
+      - harbor-data:/data
+    networks:
+      - registry
+      - cicd
+    depends_on:
+      - harbor-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+
+  harbor-registry:
+    image: goharbor/registry-photon:v2.13.1
+    container_name: harbor-registry
+    restart: unless-stopped
+    volumes:
+      - harbor-registry-data:/storage
+    networks:
+      - registry
+      - cicd
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+
+# ============================================
+# NEXUS - ARTIFACT REPOSITORY
+# ============================================
+  postgres-nexus:
+    image: postgres:15-alpine
+    container_name: postgres-nexus
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nexus
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: ${POSTGRES_NEXUS_PASSWORD}
+    volumes:
+      - postgres-nexus-data:/var/lib/postgresql/data
+    networks:
+      - registry
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nexus:
+    image: sonatype/nexus3:latest
+    container_name: nexus
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - NEXUS_SECURITY_RANDOMPASSWORD=false
+      # Configuración de base de datos
+      - NEXUS_DATASTORE_NEXUS_JDBCURL=jdbc:postgresql://postgres-nexus:5432/nexus
+      - NEXUS_DATASTORE_NEXUS_USERNAME=nexus
+      - NEXUS_DATASTORE_NEXUS_PASSWORD=${POSTGRES_NEXUS_PASSWORD}
+    volumes:
+      - nexus-data:/nexus-data
+    networks:
+      - registry
+      - cicd
+    depends_on:
+      - postgres-nexus
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/service/rest/v1/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+# ============================================
+# COMPLIANCE & AUDIT DASHBOARD
+# ============================================
+  compliance-dashboard:
+    image: grafana/grafana:12.0.2
+    container_name: compliance-dashboard
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${COMPLIANCE_DASHBOARD_PASSWORD}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - compliance-data:/var/lib/grafana
+      - ./compliance/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - registry
+      - security
+      - observability
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================
+# NETWORKS
+# ============================================
+
+networks:
+  registry:
+    driver: bridge
+    name: registry_network
+    external: true
+  cicd:
+    driver: bridge
+    name: cicd_network
+    external: true
+  backend:
+    driver: bridge
+    name: backend_network
+    external: true
+  security:
+    driver: bridge
+    name: security_network
+    external: true
+  observability:
+    driver: bridge
+    name: observability_network
+    external: true
+
+# ============================================
+# VOLUMES
+# ============================================
+
+volumes:
+  harbor-db-data:
+    name: harbor_db_data
+    external: true
+  harbor-redis-data:
+    name: harbor_redis_data
+    external: true
+  harbor-data:
+    name: harbor_data
+    external: true
+  harbor-registry-data:
+    name: harbor_registry_data
+    external: true
+  postgres-nexus-data:
+    name: postgres_nexus_data
+    external: true
+  nexus-data:
+    name: nexus_data
+    external: true
+  compliance-data:
+    name: compliance_data
+    external: true

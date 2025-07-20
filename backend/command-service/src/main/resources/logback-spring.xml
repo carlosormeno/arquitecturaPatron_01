@@ -1,6 +1,6 @@
 <configuration>
     <!-- ✅ Tu configuración actual + OpenTelemetry -->
-    <appender name="JSON-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <appender name="COMMAND-JSON-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <!--<file>../logs/command-service/command.json</file>-->
         <file>/app/logs/command-service/command.json</file>
         <!-- ✅ Añadido rolling policy para manejar archivos grandes -->
@@ -43,7 +43,7 @@
     </appender>
 
     <!-- ✅ NUEVO: Appender específico para logs del frontend -->
-    <appender name="JSON-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <appender name="FRONTEND-JSON-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
     <!--<file>../logs/frontend/frontend.json</file>-->
         <file>/app/logs/frontend/frontend.json</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -102,7 +102,7 @@
     </appender>
 
     <!-- ✅ Console para desarrollo -->
-    <appender name="CONSOLEFRONT" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="CONSOLE-FRONTEND" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n</pattern>
         </encoder>
@@ -118,14 +118,14 @@
     <!-- ✅ Logger específico para frontend logs -->
     <logger name="frontend-logs" level="DEBUG" additivity="false">
         <appender-ref ref="FRONTEND-JSON-FILE" />
-        <appender-ref ref="CONSOLEFRONT" />
+        <appender-ref ref="CONSOLE-FRONTEND" />
     </logger>
 
     <!-- ✅ Profile para desarrollo -->
     <springProfile name="development">
         <root level="DEBUG">
             <appender-ref ref="CONSOLE" />
-            <appender-ref ref="JSON-FILE" />
+            <appender-ref ref="COMMAND-JSON-FILE" />
             <appender-ref ref="FRONTEND-JSON-FILE" />
             <!--<appender-ref ref="OTEL" />-->
         </root>
@@ -134,7 +134,7 @@
     <!-- ✅ Profile por defecto (incluye producción) -->
     <springProfile name="!development">
         <root level="INFO">
-            <appender-ref ref="JSON-FILE" />
+            <appender-ref ref="COMMAND-JSON-FILE" />
             <appender-ref ref="FRONTEND-JSON-FILE" />
             <!--<appender-ref ref="OTEL" />-->
         </root>
@@ -144,4 +144,6 @@
     <logger name="io.opentelemetry" level="WARN"/>
     <logger name="io.grpc" level="WARN"/>
     <logger name="okhttp3" level="ERROR"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.hibernate" level="WARN"/>
 </configuration>

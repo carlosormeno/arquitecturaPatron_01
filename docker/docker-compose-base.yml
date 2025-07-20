@@ -1,0 +1,329 @@
+version: "3.9"
+
+services:
+
+# ============================================
+# FASE 0: INFRAESTRUCTURA BASE SOLAMENTE
+# ============================================
+
+  postgres:
+    image: debezium/postgres:17-alpine
+    container_name: postgres
+    restart: always
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups/postgres:/backups
+      - ./logs/postgres:/var/log/postgresql
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_LARGE}'
+          memory: ${MEMORY_LIMIT_LARGE}
+        reservations:
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: ${MEMORY_LIMIT_MEDIUM}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: |
+      postgres -c max_connections=200
+               -c shared_buffers=256MB
+               -c effective_cache_size=1GB
+               -c maintenance_work_mem=64MB
+               -c checkpoint_completion_target=0.9
+               -c wal_buffers=16MB
+               -c default_statistics_target=100
+               -c log_destination=stderr
+               -c logging_collector=on
+               -c log_directory=/var/log/postgresql
+               -c log_filename=postgresql-%Y-%m-%d_%H%M%S.log
+
+  postgres-backup:
+    image: postgres:15
+    container_name: postgres-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups/postgres:/backup
+    networks:
+      - backend
+    command: |
+      bash -c "
+      if [ '${BACKUP_ENABLED}' = 'true' ]; then
+        while true; do
+          echo 'Starting PostgreSQL backup...'
+          pg_dump -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} > /backup/backup_$$(date +%Y%m%d_%H%M%S).sql
+          echo 'Backup completed. Cleaning old backups...'
+          find /backup -name '*.sql' -mtime +${BACKUP_RETENTION_DAYS} -delete
+          sleep 86400
+        done
+      else
+        echo 'Backup disabled. Exiting...'
+        exit 0
+      fi"
+
+  mongo:
+    image: mongo:8.0.11
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+      - ./backups/mongo:/backup
+      - ./logs/mongodb:/var/log/mongodb
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_LARGE}'
+          memory: ${MEMORY_LIMIT_LARGE}
+        reservations:
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: ${MEMORY_LIMIT_MEDIUM}
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: mongod --logpath /var/log/mongodb/mongod.log --logappend
+
+##########################################
+  # NOTA IMPORTANTE: Migraciones de la base de datos de Kong - Cuando levantas por primera vez Kong//////////////////////////
+  #
+  # Kong requiere inicializar su base de datos PostgreSQL ejecutando
+  # las migraciones solo UNA VEZ antes de iniciar el contenedor `kong`.
+  #
+  # Ejecutar este comando, en power Sehll mejor, manualmente cuando se cree la base de datos por primera vez:
+  #
+  # docker run --rm --network ejemplo_cqrs_mongo_postgres_java_monitoring_observability -e KONG_DATABASE=postgres -e KONG_PG_HOST=kong-db -e KONG_PG_PASSWORD=kongpass kong:3.6 kong migrations bootstrap
+  #
+  # Este comando:
+  # - Crea todas las tablas necesarias en la base de datos 'kong'
+  # - Solo debe ejecutarse una vez por instalación
+  # - NO debe incluirse en docker-compose.yml como servicio persistente
+  # - Si se cambia de versión mayor (ej: de 3.x a 4.x), se ejecuta `kong migrations up` en su lugar
+  #
+  # Referencia oficial: https://docs.konghq.com/gateway/latest/kong-enterprise/migrations
+  ##########################################
+  
+  kong-db:
+    image: postgres:15
+    container_name: kong-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KONG_DB_USER}
+      POSTGRES_DB: ${KONG_DB_NAME}
+      POSTGRES_PASSWORD: ${KONG_DB_PASSWORD}
+    volumes:
+      - kong-db-data:/var/lib/postgresql/data
+    networks:
+      - gateway
+    ports:
+      - "5433:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: ${MEMORY_LIMIT_MEDIUM}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KONG_DB_USER} -d ${KONG_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s      
+
+# ============================================
+# COORDINACIÓN Y MENSAJERÍA
+# ============================================
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.9.2
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+      - ./logs/zookeeper:/var/log/zookeeper
+    networks:
+      - messaging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      kong-db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: ${MEMORY_LIMIT_MEDIUM}
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.9.2
+    container_name: kafka
+    ports:
+      - "9092:9092"   # para conexión desde local (host)
+      - "29092:29092" # para conexión desde otros contenedores
+      - "9999:9999"   # JMX port
+    environment:
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+      KAFKA_LOG_DIRS: /var/log/kafka
+      # JMX Configuration
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: kafka
+      KAFKA_OPTS: >-
+        -Dcom.sun.management.jmxremote=true
+        -Dcom.sun.management.jmxremote.authenticate=false
+        -Dcom.sun.management.jmxremote.ssl=false
+        -Dcom.sun.management.jmxremote.local.only=false
+        -Dcom.sun.management.jmxremote.rmi.port=9999
+        -Djava.rmi.server.hostname=kafka
+        -Djava.net.preferIPv4Stack=true
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+      - ./logs/kafka:/var/log/kafka
+    networks:
+      - messaging
+      - backend
+      - observability
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_XLARGE}'
+          memory: ${MEMORY_LIMIT_XLARGE}
+        reservations:
+          cpus: '${CPU_LIMIT_LARGE}'
+          memory: ${MEMORY_LIMIT_LARGE}
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  debezium:
+    image: quay.io/debezium/connect:3.2
+    container_name: debezium
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: debezium-cluster
+      CONFIG_STORAGE_TOPIC: debezium_config
+      OFFSET_STORAGE_TOPIC: debezium_offsets
+      STATUS_STORAGE_TOPIC: debezium_status
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_REST_ADVERTISED_HOST_NAME: debezium
+      CONNECT_PLUGIN_PATH: /kafka/connect
+      LOG_LEVEL: INFO
+    networks:
+      - messaging
+      - backend
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_LARGE}'
+          memory: ${MEMORY_LIMIT_LARGE}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/connectors"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+# ============================================
+# REDES SEGMENTADAS - USAN LA INFRAESTRUCTURA CREADA POR docker-compose-inicio.yml
+# ============================================
+
+networks:
+  frontend:
+    name: frontend_network
+    external: true
+  backend:
+    name: backend_network
+    external: true
+  messaging:
+    name: messaging_network
+    external: true
+  gateway:
+    name: gateway_network
+    external: true
+  observability:
+    name: observability_network
+    external: true
+
+# ============================================
+# VOLÚMENES PERSISTENTES - USAN LA INFRAESTRUCTURA CREADA POR docker-compose-inicio.yml
+# ============================================
+
+volumes:
+  pgdata:
+    name: postgres_data
+    external: true
+  mongodata:
+    name: mongo_data
+    external: true
+  kafka_data:
+    name: kafka_data
+    external: true
+  zookeeper_data:
+    name: zookeeper_data
+    external: true
+  zookeeper_logs:
+    name: zookeeper_logs
+    external: true
+  kong-db-data:
+    name: kong_db_data
+    external: true

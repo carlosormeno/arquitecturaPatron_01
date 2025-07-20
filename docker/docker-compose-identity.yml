@@ -1,0 +1,109 @@
+version: "3.9"
+
+services:
+
+# ============================================
+# FASE 3: IDENTITY LAYER - KEYCLOAK
+# ============================================
+  keycloak-db:
+    image: postgres:15
+    container_name: keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak123
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+      - ./logs/keycloak/db:/var/log/postgresql
+    networks:
+      - identity
+      - backend
+    ports:
+      - "5438:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  keycloak:
+    image: bitnami/keycloak:26.3.1
+    container_name: keycloak
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Database Configuration
+      KEYCLOAK_DATABASE_HOST: keycloak-db
+      KEYCLOAK_DATABASE_PORT: 5432
+      KEYCLOAK_DATABASE_NAME: keycloak
+      KEYCLOAK_DATABASE_USER: keycloak
+      KEYCLOAK_DATABASE_PASSWORD: keycloak123
+      # Admin Configuration
+      KEYCLOAK_ADMIN_USER: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+      # Server Configuration
+      KEYCLOAK_HTTP_ENABLED: true
+      KEYCLOAK_HOSTNAME_STRICT: false
+      KEYCLOAK_PROXY: edge
+      KEYCLOAK_ENABLE_STATISTICS: true
+      # Performance
+      KEYCLOAK_CACHE_STACK: tcp
+      KEYCLOAK_LOG_LEVEL: INFO
+    volumes:
+      - ./logs/keycloak/app:/opt/bitnami/keycloak/logs
+    networks:
+      - identity
+      - backend
+      - frontend
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2g
+        reservations:
+          cpus: '1'
+          memory: 1g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+# ============================================
+# NETWORKS
+# ============================================
+
+networks:
+  identity:
+    driver: bridge
+    name: identity_network
+    external: true
+  backend:
+    driver: bridge
+    name: backend_network
+    external: true
+  frontend:
+    driver: bridge
+    name: frontend_network
+    external: true
+
+# ============================================
+# VOLUMES
+# ============================================
+
+volumes:
+  keycloak-db-data:
+    name: keycloak_db_data
+    external: true

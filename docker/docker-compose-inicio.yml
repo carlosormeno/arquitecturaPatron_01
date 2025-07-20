@@ -1,0 +1,447 @@
+version: "3.9"
+
+# ============================================
+# ARCHIVO PRINCIPAL DE ORQUESTACIÓN
+# Docker Compose Modular por Fases
+# ============================================
+
+# Este archivo principal define solo lo esencial
+# Para levantar stacks específicos usar los archivos por fase
+
+services:
+
+# ============================================
+# ADMINISTRADOR DE CONTENEDORES
+# ============================================
+  portainer:
+    image: portainer/portainer-ce:2.31.3-alpine
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9001:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - management
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/api/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+# ============================================
+# INICIALIZADOR DE INFRAESTRUCTURA
+# Este servicio fuerza la creación de todas las redes y volúmenes
+# ============================================
+  infrastructure-init:
+    image: busybox
+    container_name: infrastructure-init
+    command: |
+      sh -c "
+      echo 'Inicializando infraestructura base...'
+      echo 'Redes creadas: frontend, backend, messaging, gateway, observability, management'
+      echo 'Volúmenes compartidos creados'
+      echo 'Bootstrap completado - Infraestructura lista para otros stacks'
+      sleep 30
+      "
+    networks:
+      # Core Networks - FUERZA LA CREACIÓN
+      - frontend
+      - backend
+      - messaging
+      - gateway
+      - observability
+      - management
+      
+      # Specialized Networks - FUERZA LA CREACIÓN
+      - security
+      - identity
+      - content
+      - data-platform
+      - data-governance
+      - workflow
+      - business-rules
+      - cicd
+      - registry
+      - apps
+    volumes:
+      # Fuerza la creación de volúmenes compartidos
+      - shared_logs:/tmp/logs
+      - shared_config:/tmp/config
+      - shared_backups:/tmp/backups
+      - shared_certificates:/tmp/certs
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 32m
+    depends_on:
+      - portainer
+
+# ============================================
+# REDES DE INFRAESTRUCTURA
+# Estas redes serán usadas por todos los otros stacks
+# ============================================
+
+networks:
+  # ========== CORE NETWORKS ==========
+  frontend:
+    driver: bridge
+    name: frontend_network
+    ipam:
+      config:
+        - subnet: 172.20.1.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Frontend applications and web interfaces"
+
+  backend:
+    driver: bridge
+    name: backend_network
+    ipam:
+      config:
+        - subnet: 172.20.2.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Backend services and APIs"
+
+  messaging:
+    driver: bridge
+    name: messaging_network
+    ipam:
+      config:
+        - subnet: 172.20.3.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Message brokers and event streaming"
+
+  gateway:
+    driver: bridge
+    name: gateway_network
+    ipam:
+      config:
+        - subnet: 172.20.4.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=API gateways and load balancers"
+
+  observability:
+    driver: bridge
+    name: observability_network
+    ipam:
+      config:
+        - subnet: 172.20.5.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Monitoring, logging, and metrics"
+
+  management:
+    driver: bridge
+    name: management_network
+    ipam:
+      config:
+        - subnet: 172.20.6.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Container and infrastructure management"
+
+  # ========== SPECIALIZED NETWORKS ==========
+  security:
+    driver: bridge
+    name: security_network
+    ipam:
+      config:
+        - subnet: 172.20.10.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Security scanning and compliance tools"
+
+  identity:
+    driver: bridge
+    name: identity_network
+    ipam:
+      config:
+        - subnet: 172.20.11.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Authentication and authorization services"
+
+  content:
+    driver: bridge
+    name: content_network
+    ipam:
+      config:
+        - subnet: 172.20.12.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Content management and document services"
+
+  data-platform:
+    driver: bridge
+    name: data_platform_network
+    ipam:
+      config:
+        - subnet: 172.20.13.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Data processing and ETL platforms"
+
+  data-governance:
+    driver: bridge
+    name: data_governance_network
+    ipam:
+      config:
+        - subnet: 172.20.14.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Data cataloging and governance"
+
+  workflow:
+    driver: bridge
+    name: workflow_network
+    ipam:
+      config:
+        - subnet: 172.20.15.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Workflow orchestration and scheduling"
+
+  business-rules:
+    driver: bridge
+    name: business_rules_network
+    ipam:
+      config:
+        - subnet: 172.20.16.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Business rules and decision engines"
+
+  cicd:
+    driver: bridge
+    name: cicd_network
+    ipam:
+      config:
+        - subnet: 172.20.17.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=CI/CD pipelines and automation"
+
+  registry:
+    driver: bridge
+    name: registry_network
+    ipam:
+      config:
+        - subnet: 172.20.18.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Container and artifact registries"
+
+  apps:
+    driver: bridge
+    name: apps_network
+    ipam:
+      config:
+        - subnet: 172.20.19.0/24
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Application services and microservices"
+
+# ============================================
+# VOLÚMENES DE INFRAESTRUCTURA
+# Estos volúmenes serán compartidos entre stacks
+# ============================================
+
+volumes:
+  # ========== GESTIÓN ==========
+  portainer_data:
+    name: portainer_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Portainer configuration and data"
+
+  # ========== BASES DE DATOS ==========
+  postgres_data:
+    name: postgres_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=PostgreSQL persistent data"
+
+  mongo_data:
+    name: mongo_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=MongoDB persistent data"
+
+  kong_db_data:
+    name: kong_db_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Kong database data"
+
+  # ========== MESSAGING ==========
+  kafka_data:
+    name: kafka_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Kafka persistent data and logs"
+
+  zookeeper_data:
+    name: zookeeper_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Zookeeper coordination data"
+
+  zookeeper_logs:
+    name: zookeeper_logs
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Zookeeper transaction logs"
+
+  # ========== OBSERVABILIDAD ==========
+  prometheus_data:
+    name: prometheus_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Prometheus metrics storage"
+
+  grafana_data:
+    name: grafana_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Grafana dashboards and configuration"
+
+  elasticsearch_data:
+    name: elasticsearch_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Elasticsearch indices and data"
+
+  # ========== RECURSOS COMPARTIDOS ==========
+  shared_logs:
+    name: shared_logs
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Logs compartidos entre servicios"
+
+  shared_config:
+    name: shared_config
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Configuraciones compartidas"
+
+  shared_backups:
+    name: shared_backups
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Backups compartidos"
+
+  shared_certificates:
+    name: shared_certificates
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Certificados SSL/TLS compartidos"
+
+  # ========== IDENTITY & SECURITY ==========
+  keycloak_data:
+    name: keycloak_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Keycloak identity provider data"
+
+  vault_data:
+    name: vault_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=HashiCorp Vault secrets storage"
+
+  # ========== CONTENT MANAGEMENT ==========
+  alfresco_data:
+    name: alfresco_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Alfresco content repository"
+
+  # ========== DATA PLATFORM ==========
+  nifi_data:
+    name: nifi_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Apache NiFi flow files and configuration"
+
+  datahub_data:
+    name: datahub_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=DataHub metadata storage"
+
+  # ========== WORKFLOW ==========
+  airflow_data:
+    name: airflow_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Apache Airflow DAGs and logs"
+
+  # ========== CI/CD ==========
+  gitea_data:
+    name: gitea_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Gitea git repositories"
+
+  nexus_data:
+    name: nexus_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Nexus artifact repository"
+
+  harbor_data:
+    name: harbor_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Harbor container registry"
+      
+      # ========== VOLÚMENES ADICIONALES PARA OTROS STACKS ==========
+  alertmanager_data:
+    name: alertmanager_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Alertmanager notification data"
+
+  loki_data:
+    name: loki_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Loki log aggregation data"
+
+# ============================================
+# INFORMACIÓN Y USO
+# ============================================
+
+# COMANDOS PARA GESTIÓN COMPLETA:
+#
+# 1. BOOTSTRAP INICIAL (SOLO UNA VEZ):
+#    docker compose -f docker-compose-inicio.yml up -d
+#
+# 2. VERIFICAR INFRAESTRUCTURA:
+#    docker network ls | grep -E "(frontend|backend|messaging|gateway|observability)"
+#    docker volume ls | grep -E "(postgres|mongo|kafka|prometheus|grafana)"
+#
+# 3. LEVANTAR STACKS MODULARES:
+#    docker compose -f docker-compose-base.yml up -d
+#    docker compose -f docker-compose-observability.yml up -d
+#    docker compose -f docker-compose-gateway.yml up -d
+#    [otros stacks...]
+#
+# 4. LIMPIAR TODO (CUIDADO - BORRA DATOS):
+#    docker compose -f docker-compose-*.yml down -v
+#    docker network prune -f
+#    docker volume prune -f
+#
+# 5. ACCESO:
+#    Portainer: http://localhost:9001

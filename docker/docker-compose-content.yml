@@ -1,0 +1,313 @@
+version: "3.9"
+
+services:
+
+# ============================================
+# FASE 4: CONTENT MANAGEMENT - ALFRESCO STACK COMPLETO
+# ============================================
+  alfresco-postgres:
+    image: postgres:15
+    container_name: alfresco-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: alfresco
+      POSTGRES_USER: alfresco
+      POSTGRES_PASSWORD: alfresco123
+    volumes:
+      - alfresco-postgres-data:/var/lib/postgresql/data
+      - ./logs/alfresco/postgres:/var/log/postgresql
+    networks:
+      - content
+      - backend
+    ports:
+      - "5434:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alfresco -d alfresco"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  alfresco-activemq:
+    image: alfresco/alfresco-activemq:5.17-jre17-rockylinux8
+    container_name: alfresco-activemq
+    restart: unless-stopped
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    volumes:
+      - activemq-data:/opt/activemq/data
+      - ./logs/alfresco/activemq:/opt/activemq/data/kahadb.log
+    networks:
+      - content
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8161/admin"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  alfresco-shared-file-store:
+    image: alfresco/alfresco-shared-file-store:latest
+    container_name: alfresco-shared-file-store
+    restart: unless-stopped
+    ports:
+      - "8099:8099"
+    environment:
+      JAVA_OPTS: "-XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80"
+      scheduler.content.age.millis: 86400000
+      scheduler.cleanup.interval: 86400000
+    volumes:
+      - shared-file-store-data:/tmp/Alfresco/sfs
+      - ./logs/alfresco/sfs:/opt/alfresco-shared-file-store/logs
+    networks:
+      - content
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8099/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  alfresco-transform-core-aio:
+    image: alfresco/alfresco-transform-core-aio:5.1.7
+    container_name: alfresco-transform-core-aio
+    restart: unless-stopped
+    ports:
+      - "8091:8090"
+    environment:
+      JAVA_OPTS: "-XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80"
+      ACTIVEMQ_URL: nio://alfresco-activemq:61616
+      SHARED_FILE_STORE_URL: http://alfresco-shared-file-store:8099/alfresco/api/-default-/private/sfs/versions/1/file
+    volumes:
+      - ./logs/alfresco/transform:/opt/alfresco-transform-core-aio/logs
+    networks:
+      - content
+      - backend
+    depends_on:
+      alfresco-activemq:
+        condition: service_healthy
+      alfresco-shared-file-store:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  alfresco-solr:
+    image: alfresco/alfresco-search-services:2.0.15
+    container_name: alfresco-solr
+    restart: unless-stopped
+    ports:
+      - "8983:8983"
+    environment:
+      SOLR_ALFRESCO_HOST: alfresco-repository
+      SOLR_ALFRESCO_PORT: 8080
+      SOLR_SOLR_HOST: alfresco-solr
+      SOLR_SOLR_PORT: 8983
+      SOLR_CREATE_ALFRESCO_DEFAULTS: alfresco,archive
+      SOLR_JAVA_MEM: "-Xms2g -Xmx2g"
+      SOLR_OPTS: "-Dsolr.jetty.request.header.size=1000000 -Dsolr.jetty.threads.min=10 -Dsolr.jetty.threads.max=10000 -Dsolr.jetty.threads.idle.timeout=5000"
+    volumes:
+      - solr-data:/opt/alfresco-search-services/data
+      - ./logs/alfresco/solr:/opt/alfresco-search-services/logs
+    networks:
+      - content
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8983/solr/admin/cores?action=STATUS"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  alfresco-repository:
+    image: alfresco/alfresco-content-repository-community:25.2.0-A.16
+    container_name: alfresco-repository
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    environment:
+      # Database
+      JAVA_OPTS: >-
+        -Ddb.driver=org.postgresql.Driver
+        -Ddb.username=alfresco
+        -Ddb.password=alfresco123
+        -Ddb.url=jdbc:postgresql://alfresco-postgres:5432/alfresco
+        -Dsolr.host=alfresco-solr
+        -Dsolr.port=8983
+        -Dsolr.http.connection.timeout=1000
+        -Dsolr.secureComms=secret
+        -Dsolr.sharedSecret=secret
+        -Dsolr.base.url=/solr
+        -Dindex.subsystem.name=solr6
+        -Dshare.host=127.0.0.1
+        -Dshare.port=8080
+        -Dalfresco.host=localhost
+        -Dalfresco.port=8082
+        -Daos.baseUrlOverwrite=http://localhost:8082/alfresco/aos
+        -Dmessaging.broker.url="failover:(nio://alfresco-activemq:61616)?timeout=3000&jms.useCompression=true"
+        -Ddeployment.method=DOCKER_COMPOSE
+        -DlocalTransform.core-aio.url=http://alfresco-transform-core-aio:8090/
+        -Dcsrf.filter.enabled=false
+        -XX:MinRAMPercentage=50
+        -XX:MaxRAMPercentage=80
+    volumes:
+      - alfresco-data:/usr/local/tomcat/alf_data
+      - ./logs/alfresco/repo:/usr/local/tomcat/logs
+    networks:
+      - content
+      - backend
+      - frontend
+    depends_on:
+      alfresco-postgres:
+        condition: service_healthy
+      alfresco-activemq:
+        condition: service_healthy
+      alfresco-transform-core-aio:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4g
+        reservations:
+          cpus: '1'
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/alfresco/api/-default-/public/alfresco/versions/1/probes/-ready-"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+  alfresco-share:
+    image: alfresco/alfresco-share:23.2.4
+    container_name: alfresco-share
+    restart: unless-stopped
+    ports:
+      - "8083:8080"
+    environment:
+      REPO_HOST: alfresco-repository
+      REPO_PORT: 8080
+      JAVA_OPTS: >-
+        -XX:MinRAMPercentage=50
+        -XX:MaxRAMPercentage=80
+        -Dalfresco.host=localhost
+        -Dalfresco.port=8082
+        -Dalfresco.context=alfresco
+        -Dalfresco.protocol=http
+    volumes:
+      - ./logs/alfresco/share:/usr/local/tomcat/logs
+    networks:
+      - content
+      - frontend
+    depends_on:
+      alfresco-repository:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/share/page/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  alfresco-content-app:
+    image: alfresco/alfresco-content-app:6.0.0
+    container_name: alfresco-content-app
+    restart: unless-stopped
+    ports:
+      - "4201:8080"
+    environment:
+      APP_CONFIG_PROVIDER: ECM
+      APP_CONFIG_AUTH_TYPE: BASIC
+      APP_CONFIG_ECM_HOST: http://localhost:8082
+    volumes:
+      - ./logs/alfresco/content-app:/var/log/nginx
+    networks:
+      - content
+      - frontend
+    depends_on:
+      alfresco-repository:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================
+# NETWORKS
+# ============================================
+
+networks:
+  content:
+    driver: bridge
+    name: content_network
+    external: true
+  backend:
+    driver: bridge
+    name: backend_network
+    external: true
+  frontend:
+    driver: bridge
+    name: frontend_network
+    external: true
+
+# ============================================
+# VOLUMES
+# ============================================
+
+volumes:
+  alfresco-postgres-data:
+    name: alfresco_postgres_data
+    external: true
+  alfresco-data:
+    name: alfresco_data
+    external: true
+  activemq-data:
+    name: activemq_data
+    external: true
+  shared-file-store-data:
+    name: shared_file_store_data
+    external: true
+  solr-data:
+    name: solr_data
+    external: true

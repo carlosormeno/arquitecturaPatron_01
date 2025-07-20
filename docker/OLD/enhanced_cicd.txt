@@ -1,0 +1,306 @@
+# ============================================
+# ENHANCED CI/CD & DEVSECOPS STACK
+# ============================================
+
+services:
+  # ============================================
+  # GITOPS & SOURCE CODE
+  # ============================================
+  gitea:
+    image: gitea/gitea:1.22.5
+    container_name: gitea
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+      - "2222:22"
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=postgres:5432
+      - GITEA__database__NAME=${GITEA_DB_NAME}
+      - GITEA__database__USER=${GITEA_DB_USER}
+      - GITEA__database__PASSWD=${GITEA_DB_PASSWORD}
+      - GITEA__security__SECRET_KEY=${GITEA_SECRET_KEY}
+    volumes:
+      - gitea-data:/data
+      - ./logs/gitea:/data/gitea/log
+    networks:
+      - cicd
+      - backend
+
+  # ============================================
+  # ADVANCED CI/CD PIPELINE
+  # ============================================
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+      - "50000:50000"
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx2g -Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt
+      - ./jenkins/casc:/var/jenkins_home/casc_configs
+    networks:
+      - cicd
+      - security
+    user: root
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4g
+
+  # ============================================
+  # REGISTRY SEGURO CON HARBOR
+  # ============================================
+  harbor-db:
+    image: postgres:15
+    container_name: harbor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${HARBOR_DB_NAME}
+      POSTGRES_USER: ${HARBOR_DB_USER}
+      POSTGRES_PASSWORD: ${HARBOR_DB_PASSWORD}
+    volumes:
+      - harbor-db-data:/var/lib/postgresql/data
+    networks:
+      - registry
+
+  harbor-redis:
+    image: redis:7.4-alpine
+    container_name: harbor-redis
+    restart: unless-stopped
+    volumes:
+      - harbor-redis-data:/data
+    networks:
+      - registry
+
+  harbor-core:
+    image: goharbor/harbor-core:v2.12.0
+    container_name: harbor-core
+    restart: unless-stopped
+    ports:
+      - "8089:8080"
+    environment:
+      CORE_SECRET: ${HARBOR_CORE_SECRET}
+      JOBSERVICE_SECRET: ${HARBOR_JOBSERVICE_SECRET}
+      DATABASE_TYPE: postgresql
+      POSTGRESQL_HOST: harbor-db
+      POSTGRESQL_DATABASE: ${HARBOR_DB_NAME}
+      POSTGRESQL_USERNAME: ${HARBOR_DB_USER}
+      POSTGRESQL_PASSWORD: ${HARBOR_DB_PASSWORD}
+      REDIS_HOST: harbor-redis
+      ADMIN_PASSWORD: ${HARBOR_ADMIN_PASSWORD}
+    volumes:
+      - harbor-data:/data
+    networks:
+      - registry
+      - cicd
+    depends_on:
+      - harbor-db
+      - harbor-redis
+
+  harbor-jobservice:
+    image: goharbor/harbor-jobservice:v2.12.0
+    container_name: harbor-jobservice
+    restart: unless-stopped
+    environment:
+      CORE_SECRET: ${HARBOR_CORE_SECRET}
+      JOBSERVICE_SECRET: ${HARBOR_JOBSERVICE_SECRET}
+      CORE_URL: http://harbor-core:8080
+      REGISTRY_URL: http://harbor-registry:5000
+    volumes:
+      - harbor-data:/data
+    networks:
+      - registry
+    depends_on:
+      - harbor-core
+
+  harbor-registry:
+    image: goharbor/registry-photon:v2.12.0
+    container_name: harbor-registry
+    restart: unless-stopped
+    volumes:
+      - harbor-registry-data:/storage
+    networks:
+      - registry
+
+  # ============================================
+  # GITOPS CON ARGOCD
+  # ============================================
+  argocd-server:
+    image: argoproj/argocd:v2.11.3
+    container_name: argocd-server
+    restart: unless-stopped
+    ports:
+      - "8087:8080"
+      - "8443:8443"
+    command: [argocd-server, --insecure]
+    environment:
+      - ARGOCD_SERVER_INSECURE=true
+    volumes:
+      - argocd-data:/home/argocd
+    networks:
+      - cicd
+      - frontend
+
+  argocd-repo-server:
+    image: argoproj/argocd:v2.11.3
+    container_name: argocd-repo-server
+    restart: unless-stopped
+    command: [argocd-repo-server]
+    volumes:
+      - argocd-data:/home/argocd
+    networks:
+      - cicd
+
+  argocd-application-controller:
+    image: argoproj/argocd:v2.11.3
+    container_name: argocd-application-controller
+    restart: unless-stopped
+    command: [argocd-application-controller]
+    volumes:
+      - argocd-data:/home/argocd
+    networks:
+      - cicd
+
+  # ============================================
+  # SECURITY SCANNING INTEGRADO
+  # ============================================
+  
+  # Trivy Server para scanning continuo
+  trivy-server:
+    image: aquasec/trivy:latest
+    container_name: trivy-server
+    restart: unless-stopped
+    ports:
+      - "8094:8080"
+    command: server --listen 0.0.0.0:8080
+    environment:
+      TRIVY_CACHE_DIR: /tmp/trivy
+    volumes:
+      - trivy-cache:/tmp/trivy
+      - ./security/trivy:/reports
+    networks:
+      - security
+      - cicd
+
+  # Snyk para vulnerabilidades
+  snyk-broker:
+    image: snyk/broker:docker
+    container_name: snyk-broker
+    restart: unless-stopped
+    environment:
+      BROKER_TOKEN: ${SNYK_BROKER_TOKEN}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      PORT: 7341
+    ports:
+      - "7341:7341"
+    networks:
+      - security
+      - cicd
+
+  # ============================================
+  # POLICY AS CODE
+  # ============================================
+  open-policy-agent:
+    image: openpolicyagent/opa:latest
+    container_name: opa
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    command: run --server --addr 0.0.0.0:8181 /policies
+    volumes:
+      - ./policies:/policies
+    networks:
+      - security
+      - cicd
+
+  # ============================================
+  # ARTIFACT MANAGEMENT
+  # ============================================
+  nexus:
+    image: sonatype/nexus3:3.70.1
+    container_name: nexus
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - NEXUS_SECURITY_RANDOMPASSWORD=false
+    volumes:
+      - nexus-data:/nexus-data
+    networks:
+      - cicd
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4g
+
+  # ============================================
+  # COMPLIANCE & AUDIT
+  # ============================================
+  
+  # Compliance dashboard
+  compliance-dashboard:
+    image: grafana/grafana:12.0.2
+    container_name: compliance-dashboard
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${COMPLIANCE_DASHBOARD_PASSWORD}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - compliance-data:/var/lib/grafana
+      - ./compliance/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - security
+      - observability
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  cicd:
+    driver: bridge
+    name: cicd_network
+  registry:
+    driver: bridge
+    name: registry_network
+  security:
+    driver: bridge
+    name: security_network
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  gitea-data:
+    name: gitea_data
+  jenkins-data:
+    name: jenkins_data
+  harbor-db-data:
+    name: harbor_db_data
+  harbor-redis-data:
+    name: harbor_redis_data
+  harbor-data:
+    name: harbor_data
+  harbor-registry-data:
+    name: harbor_registry_data
+  argocd-data:
+    name: argocd_data
+  trivy-cache:
+    name: trivy_cache
+  nexus-data:
+    name: nexus_data
+  compliance-data:
+    name: compliance_data

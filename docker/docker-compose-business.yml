@@ -1,0 +1,105 @@
+version: "3.9"
+
+services:
+
+# ============================================
+# FASE 8: BUSINESS RULES - GORULES
+# ============================================
+  gorules-editor:
+    image: gorules/editor:1.15.0
+    container_name: gorules-editor
+    restart: unless-stopped
+    ports:
+      - "3003:3000"
+    environment:
+      NODE_ENV: production
+      EDITOR_PORT: 3000
+      RULES_STORAGE_PATH: /app/rules
+      EDITOR_MEMORY_LIMIT: 512m
+    volumes:
+      - gorules-data:/app/rules
+      - ./logs/gorules/editor:/app/logs
+    networks:
+      - business-rules
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+        reservations:
+          cpus: '0.25'
+          memory: 256m
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  gorules-brms:
+    image: gorules/brms:latest
+    container_name: gorules-brms
+    restart: unless-stopped
+    ports:
+      - "8180:8080"
+    environment:
+      PORT: 8080
+      LOG_LEVEL: info
+      RULES_PATH: /app/rules
+      RULES_HOT_RELOAD: "true"
+      WORKERS: 4
+      CACHE_ENABLED: "true"
+      CACHE_TTL: 300
+      METRICS_ENABLED: "true"
+      HEALTH_CHECK_ENABLED: "true"
+    volumes:
+      - gorules-data:/app/rules:ro
+      - ./logs/gorules/brms:/app/logs
+    networks:
+      - business-rules
+      - backend
+    depends_on:
+      gorules-editor:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1g
+        reservations:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+# ============================================
+# NETWORKS
+# ============================================
+
+networks:
+  business-rules:
+    driver: bridge
+    name: business_rules_network
+    external: true
+  backend:
+    driver: bridge
+    name: backend_network
+    external: true
+  frontend:
+    driver: bridge
+    name: frontend_network
+    external: true
+
+# ============================================
+# VOLUMES
+# ============================================
+
+volumes:
+  gorules-data:
+    name: gorules_data
+    external: true

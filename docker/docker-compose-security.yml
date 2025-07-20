@@ -1,0 +1,310 @@
+version: "3.9"
+
+services:
+
+# ============================================
+# FASE 6.5: SECURITY STACK - SAST/DAST/IAST
+# ============================================
+  # SAST - Static Analysis
+  sonarqube-db:
+    image: postgres:15
+    container_name: sonarqube-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sonarqube
+      POSTGRES_USER: sonarqube
+      POSTGRES_PASSWORD: sonarqube123
+    volumes:
+      - sonarqube-db-data:/var/lib/postgresql/data
+    networks:
+      - security
+      - backend
+    ports:
+      - "5435:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonarqube -d sonarqube"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sonarqube:
+    image: sonarqube:25.6.0.109173-community
+    container_name: sonarqube
+    restart: unless-stopped
+    ports:
+      - "9002:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonarqube
+      SONAR_JDBC_PASSWORD: sonarqube123
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: true
+      # Enhanced Security Configuration
+      SONAR_WEB_JAVAOPTS: "-Xmx2g -Xms1g -XX:MaxDirectMemorySize=256m -XX:+HeapDumpOnOutOfMemoryError"
+      SONAR_SEARCH_JAVAOPTS: "-Xmx1g -Xms512m -XX:MaxDirectMemorySize=256m -XX:+HeapDumpOnOutOfMemoryError"
+      SONAR_CE_JAVAOPTS: "-Xmx1g -Xms512m -XX:MaxDirectMemorySize=256m -XX:+HeapDumpOnOutOfMemoryError"
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-logs:/opt/sonarqube/logs
+      - sonarqube-extensions:/opt/sonarqube/extensions
+      - ./logs/sonarqube:/opt/sonarqube/logs
+      # Security plugins and configurations
+      - ./security/sonarqube/plugins:/opt/sonarqube/extensions/plugins:ro
+      - ./security/sonarqube/conf:/opt/sonarqube/conf:ro
+    networks:
+      - security
+      - backend
+    depends_on:
+      sonarqube-db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4g
+        reservations:
+          cpus: '1'
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/api/system/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # ============================================
+  # SNYK FREE - VULNERABILITY SCANNING
+  # ============================================
+  snyk-cli:
+    image: snyk/snyk:alpine
+    container_name: snyk-cli
+    restart: unless-stopped
+    environment:
+      SNYK_TOKEN: ${SNYK_FREE_TOKEN}  # Token gratuito de snyk.io
+      SNYK_ORG: ${SNYK_ORG_ID}       # Tu organization ID (opcional)
+    volumes:
+      - ./src:/app:ro                 # Código fuente a analizar
+      - ./security/snyk:/reports      # Reportes de salida
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Para container scanning
+    working_dir: /app
+    command: >
+      sh -c "
+      echo 'Iniciando análisis Snyk...' &&
+      snyk auth ${SNYK_TOKEN} &&
+      echo 'Escaneando dependencias...' &&
+      snyk test --json > /reports/dependencies-$(date +%Y%m%d-%H%M%S).json || true &&
+      echo 'Escaneando código...' &&
+      snyk code test --json > /reports/code-$(date +%Y%m%d-%H%M%S).json || true &&
+      echo 'Escaneando imágenes Docker...' &&
+      snyk container test postgres:15 --json > /reports/container-$(date +%Y%m%d-%H%M%S).json || true &&
+      echo 'Análisis completado. Reportes en /reports/' &&
+      tail -f /dev/null
+      "
+    networks:
+      - security
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "snyk", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # DAST - Dynamic Analysis
+  owasp-zap:
+    image: zaproxy/zap-stable:2.16.1
+    container_name: owasp-zap
+    restart: unless-stopped
+    ports:
+      - "8092:8080"
+      - "8093:8090"
+    user: zap
+    volumes:
+      - zap-data:/zap/wrk
+      - ./security/zap:/zap/wrk:rw
+      - ./logs/owasp-zap:/zap/wrk/logs
+      # Enhanced configuration
+      - ./security/zap/policies:/zap/wrk/policies:ro
+      - ./security/zap/scripts:/zap/wrk/scripts:ro
+    networks:
+      - security
+      - backend
+    command: zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=zap-api-key-12345
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/JSON/core/view/version/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # IAST - Interactive Analysis
+  falco:
+    image: falcosecurity/falco-no-driver:0.39.1
+    container_name: falco
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - /dev:/host/dev
+      - /proc:/host/proc:ro
+      - /boot:/host/boot:ro
+      - /lib/modules:/host/lib/modules:ro
+      - /usr:/host/usr:ro
+      - /etc:/host/etc:ro
+      - ./security/falco:/etc/falco:ro
+      - ./logs/falco:/var/log/falco
+    networks:
+      - security
+      - backend
+    command: falco --userspace
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+
+  # Additional Security Tools
+  trivy:
+    image: aquasec/trivy:0.52.0
+    container_name: trivy
+    restart: unless-stopped
+    ports:
+      - "8094:8080"
+    environment:
+      - TRIVY_CACHE_DIR=/tmp/trivy
+      - TRIVY_QUIET=false
+      - TRIVY_NO_PROGRESS=false
+      - TRIVY_INSECURE=false
+    volumes:
+      - trivy-cache:/tmp/trivy
+      - ./security/trivy:/reports
+      - ./logs/trivy:/var/log/trivy
+    networks:
+      - security
+      - backend
+    command: server --listen 0.0.0.0:8080
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # POLICY AS CODE
+  # ============================================
+  open-policy-agent:
+    image: openpolicyagent/opa:latest
+    container_name: opa
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    command: run --server --addr 0.0.0.0:8181 /policies
+    volumes:
+      - ./policies:/policies
+    networks:
+      - security
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256m
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8181/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Security Dashboard
+  security-dashboard:
+    image: grafana/grafana:12.0.2
+    container_name: security-dashboard
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+    volumes:
+      - security-dashboard-data:/var/lib/grafana
+      - ./security/dashboards:/var/lib/grafana/dashboards:ro
+      - ./security/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - security
+      - backend
+    depends_on:
+      - sonarqube
+      - owasp-zap
+      - falco
+      - trivy
+      - snyk-cli
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================
+# NETWORKS
+# ============================================
+
+networks:
+  security:
+    driver: bridge
+    name: security_network
+    external: true
+  backend:
+    driver: bridge
+    name: backend_network
+    external: true
+
+# ============================================
+# VOLUMES
+# ============================================
+
+volumes:
+  sonarqube-data:
+    name: sonarqube_data
+    external: true
+  sonarqube-logs:
+    name: sonarqube_logs
+    external: true
+  sonarqube-db-data:
+    name: sonarqube_db_data
+    external: true
+  sonarqube-extensions:
+    name: sonarqube_extensions
+    external: true
+  zap-data:
+    name: zap_data
+    external: true
+  trivy-cache:
+    name: trivy_cache
+    external: true
+  security-dashboard-data:
+    name: security_dashboard_data
+    external: true

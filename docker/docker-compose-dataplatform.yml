@@ -1,0 +1,136 @@
+version: "3.9"
+
+services:
+
+# ============================================
+# FASE 5: DATA PLATFORM - NIFI
+# ============================================
+  nifi-registry:
+    image: apache/nifi-registry:2.0.0
+    container_name: nifi-registry
+    restart: unless-stopped
+    ports:
+      - "18080:18080"
+    environment:
+      LOG_LEVEL: INFO
+      NIFI_REGISTRY_DB_DIR: /opt/nifi-registry/nifi-registry-current/database
+      NIFI_REGISTRY_FLOW_PROVIDER: file
+      NIFI_REGISTRY_FLOW_STORAGE_DIR: /opt/nifi-registry/nifi-registry-current/flow_storage
+    volumes:
+      - nifi-registry-database:/opt/nifi-registry/nifi-registry-current/database
+      - nifi-registry-flow-storage:/opt/nifi-registry/nifi-registry-current/flow_storage
+      - ./logs/nifi/registry:/opt/nifi-registry/nifi-registry-current/logs
+    networks:
+      - data-platform
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18080/nifi-registry/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  nifi:
+    image: apache/nifi:2.0.0
+    container_name: nifi
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+      - "8084:8080"
+    environment:
+      SINGLE_USER_CREDENTIALS_USERNAME: admin
+      SINGLE_USER_CREDENTIALS_PASSWORD: admin123456789
+      NIFI_WEB_HTTPS_PORT: 8443
+      NIFI_WEB_HTTP_PORT: 8080
+      NIFI_WEB_HTTPS_HOST: 0.0.0.0
+      NIFI_WEB_HTTP_HOST: 0.0.0.0
+      NIFI_CLUSTER_IS_NODE: false
+      NIFI_ELECTION_MAX_WAIT: 30 sec
+      NIFI_SENSITIVE_PROPS_KEY: nifi123456789012
+    volumes:
+      - nifi-database-repository:/opt/nifi/nifi-current/database_repository
+      - nifi-flowfile-repository:/opt/nifi/nifi-current/flowfile_repository
+      - nifi-content-repository:/opt/nifi/nifi-current/content_repository
+      - nifi-provenance-repository:/opt/nifi/nifi-current/provenance_repository
+      - nifi-state:/opt/nifi/nifi-current/state
+      - nifi-logs:/opt/nifi/nifi-current/logs
+      - ./logs/nifi/app:/opt/nifi/nifi-current/logs
+    networks:
+      - data-platform
+      - backend
+      - messaging
+      - observability
+    depends_on:
+      nifi-registry:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8g
+        reservations:
+          cpus: '1'
+          memory: 4g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/nifi/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+# ============================================
+# NETWORKS
+# ============================================
+
+networks:
+  data-platform:
+    driver: bridge
+    name: data_platform_network
+    external: true
+  backend:
+    driver: bridge
+    name: backend_network
+    external: true
+  messaging:
+    driver: bridge
+    name: messaging_network
+    external: true
+  observability:
+    driver: bridge
+    name: observability_network
+    external: true
+
+# ============================================
+# VOLUMES
+# ============================================
+
+volumes:
+  nifi-database-repository:
+    name: nifi_database_repository
+    external: true
+  nifi-flowfile-repository:
+    name: nifi_flowfile_repository
+    external: true
+  nifi-content-repository:
+    name: nifi_content_repository
+    external: true
+  nifi-provenance-repository:
+    name: nifi_provenance_repository
+    external: true
+  nifi-state:
+    name: nifi_state
+    external: true
+  nifi-logs:
+    name: nifi_logs
+    external: true
+  nifi-registry-database:
+    name: nifi_registry_database
+    external: true
+  nifi-registry-flow-storage:
+    name: nifi_registry_flow_storage
+    external: true

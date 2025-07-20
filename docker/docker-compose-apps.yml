@@ -1,0 +1,155 @@
+version: "3.9"
+
+services:
+
+# ============================================
+# FASE 9: APLICACIONES
+# ============================================
+
+  comando-microservicio:
+    image: comando-microservicio:latest
+    container_name: comando-microservicio
+    user: "1001:1001"
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS=${JAVA_OPTS_COMMAND}
+      - LOGGING_LEVEL_ROOT=${LOG_LEVEL_ROOT}
+      - LOGGING_LEVEL_COM_EJEMPLO=${LOG_LEVEL_APP}
+    volumes:
+      - ./logs/command-service:/app/logs/command-service
+      - ./logs/frontend:/app/logs/frontend
+    networks:
+      - apps
+      - backend
+      - messaging
+      - observability
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_LARGE}'
+          memory: ${MEMORY_LIMIT_LARGE}
+        reservations:
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: ${MEMORY_LIMIT_MEDIUM}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  consulta-microservicio:
+    image: consulta-microservicio:latest
+    container_name: consulta-microservicio
+    user: "1001:1001"
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/${POSTGRES_DB}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS=${JAVA_OPTS_QUERY}
+      - LOGGING_LEVEL_ROOT=${LOG_LEVEL_ROOT}
+      - LOGGING_LEVEL_COM_EJEMPLO=${LOG_LEVEL_APP}
+    volumes:
+      - ./logs/query-service:/app/logs/query-service
+    networks:
+      - apps
+      - backend
+      - messaging
+      - observability
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_LARGE}'
+          memory: ${MEMORY_LIMIT_LARGE}
+        reservations:
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: ${MEMORY_LIMIT_MEDIUM}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  frontend:
+    image: frontend:latest
+    container_name: frontend
+    ports:
+      - "4200:80"
+    volumes:
+      - ./logs/frontend:/var/log/nginx
+    networks:
+      - apps
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: ${MEMORY_LIMIT_MEDIUM}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+# ============================================
+# UTILITIES
+# ============================================
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:4.1.0
+    container_name: kafdrop
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKER_CONNECT: kafka:29092
+      JVM_OPTS: "-Xms32M -Xmx64M"
+    networks:
+      - apps
+      - messaging
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_SMALL}'
+          memory: '${MEMORY_LIMIT_XSMALL}'
+
+# ============================================
+# NETWORKS
+# ============================================
+
+networks:
+  apps:
+    driver: bridge
+    name: apps_network
+    external: true
+  frontend:
+    driver: bridge
+    name: frontend_network
+    external: true
+  backend:
+    driver: bridge
+    name: backend_network
+    external: true
+  messaging:
+    driver: bridge
+    name: messaging_network
+    external: true
+  observability:
+    driver: bridge
+    name: observability_network
+    external: true
