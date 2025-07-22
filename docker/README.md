@@ -138,7 +138,7 @@ docker compose -f docker-compose-inicio.yml up -d
 docker compose -f docker-compose-base.yml up -d
 docker compose -f docker-compose-observability.yml up -d
 docker compose -f docker-compose-gateway.yml up -d
-docker compose -f docker-compose-app.yml up -d
+docker compose -f docker-compose-apps.yml up -d
 ```
 
 ### 3. **Verificar Instalación**

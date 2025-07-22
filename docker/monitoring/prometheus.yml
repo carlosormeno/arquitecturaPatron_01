@@ -127,6 +127,12 @@ scrape_configs:
 #    metrics_path: '/api/status'
 #    scrape_interval: 30s
 
+  - job_name: 'opensearch-direct'
+    static_configs:
+      - targets: ['opensearch:9200']
+    metrics_path: '/_prometheus/metrics'
+    scrape_interval: 30s
+
   - job_name: 'blackbox'
     metrics_path: /probe
     params:

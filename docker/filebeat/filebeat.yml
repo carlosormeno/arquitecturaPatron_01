@@ -1,11 +1,56 @@
+# ===== CONFIGURACIÓN ESTANDARIZADA PARA COMPARACIÓN =====
+
 filebeat.inputs:
+  # Input 1: Logs JSON en subdirectorios (igual que Promtail y Fluentd)
   - type: log
     enabled: true
     paths:
       - /app/logs/*/*.json
     scan_frequency: 10s
+    fields:
+      stack: "elk-filebeat"
+      source_type: "json"
+    fields_under_root: true
     json.keys_under_root: true
     json.add_error_key: true
+    exclude_files: ['\.gz$']
 
+  # Input 2: Logs de texto plano (igual que Promtail y Fluentd)  
+  - type: log
+    enabled: true
+    paths:
+      - /app/logs/**/*.log
+    scan_frequency: 10s
+    fields:
+      stack: "elk-filebeat"
+      source_type: "text"
+    fields_under_root: true
+    exclude_files: ['postgres.*\.log$', 'README\.md$']
+    multiline.pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+    multiline.negate: true
+    multiline.match: after
+
+# ===== CONFIGURACIÓN DE SALIDA =====
 output.logstash:
   hosts: ["logstash:5044"]
+  timeout: 30s
+  max_retries: 3
+
+# ===== CONFIGURACIÓN DE RENDIMIENTO =====
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat.log
+  keepfiles: 3
+  rotateeverybytes: 10485760
+
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 5s
+
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_docker_metadata: ~

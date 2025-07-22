@@ -419,6 +419,17 @@ volumes:
       - "com.docker.compose.project=infrastructure"
       - "description=Loki log aggregation data"
 
+   # ... volumes existentes ...
+  opensearch-data:
+    name: opensearch_data
+      - "com.docker.compose.project=infrastructure"
+      - "description=Opensearch indices and data"
+  
+  fluentd-data:
+    name: fluentd_data
+      - "com.docker.compose.project=infrastructure"
+      - "description=Fluentd indices and data"
+
 # ============================================
 # INFORMACIÓN Y USO
 # ============================================

@@ -15,117 +15,64 @@ clients:
       max_retries: 10
 
 scrape_configs:
-  - job_name: command-service
+  # ===== CONFIGURACIÓN ESTANDARIZADA PARA COMPARACIÓN =====
+  
+  # Input 1: Logs JSON en subdirectorios (igual que Filebeat y Fluentd)
+  - job_name: json-logs-standardized
     static_configs:
       - targets:
           - localhost
         labels:
-          job: command-service
-          service: command-service
-          environment: "${ENVIRONMENT:-development}"
-          __path__: /app/logs/command-service/*.json
-    # ✅ Pipeline para extraer campos JSON como labels
+          job: json-logs
+          stack: loki-promtail
+          source_type: json
+          __path__: /app/logs/*/*.json
     pipeline_stages:
       - json:
           expressions:
             level: level
-            logger: loggerName
+            service: service
+            servicio: servicio
+            message: message
+            timestamp: timestamp
+            request_id: request_id
+            error_code: error_code
+            thread: thread
             traceId: traceId
             spanId: spanId
-            timestamp: timestamp
-            message: message
       - timestamp:
           source: timestamp
-          format: RFC3339Nano
+          format: RFC3339
+          fallback_formats:
+            - RFC3339Nano
+            - "2006-01-02T15:04:05.000Z"
       - labels:
           level:
-          traceId:
-          spanId:
+          service:
+          stack:
+          source_type:
 
-  - job_name: query-service
+  # Input 2: Logs de texto plano (igual que Filebeat y Fluentd)
+  - job_name: text-logs-standardized
     static_configs:
       - targets:
           - localhost
         labels:
-          job: query-service
-          service: query-service
-          environment: "${ENVIRONMENT:-development}"
-          __path__: /app/logs/query-service/*.json
-    # ✅ Pipeline para extraer campos JSON como labels
-    pipeline_stages:
-      - json:
-          expressions:
-            level: level
-            logger: loggerName
-            traceId: traceId
-            spanId: spanId
-            timestamp: timestamp
-            message: message
-      - timestamp:
-          source: timestamp
-          format: RFC3339Nano
-      - labels:
-          level:
-          traceId:
-          spanId:
-
-  # ✅ Logs del frontend si decides enviárselos a Promtail
-  - job_name: frontend-angular
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: frontend-angular
-          service: frontend-angular
-          environment: "${ENVIRONMENT:-development}"
-          __path__: /app/logs/frontend/*.json
-    pipeline_stages:
-      - json:
-          expressions:
-            level: level
-            message: message
-            timestamp: timestamp
-      - timestamp:
-          source: timestamp
-          format: RFC3339Nano
-      - labels:
-          level:
-
-  # ===== LOGS JSON DE CONTENEDORES =====
-  - job_name: containers
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: containers
-          __path__: /app/logs/**/*.json
-    pipeline_stages:
-      - json:
-          expressions:
-            timestamp: timestamp
-            level: level
-            message: message
-            container: servicio
-      - timestamp:
-          source: timestamp
-          format: RFC3339Nano
-      - labels:
-          level:
-          container:
-
-  # ✅ AÑADIR: Logs de texto plano (no JSON)
-  - job_name: plain-logs
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: plain-logs
+          job: text-logs
+          stack: loki-promtail
+          source_type: text
           __path__: /app/logs/**/*.log
     pipeline_stages:
       - regex:
-          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.,]\d{3}Z?)\s+(?P<level>\w+)\s+(?P<message>.*)'
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})?)\s+(?P<level>\w+)\s+(?P<service>[\w-]+):\s*(?P<message>.*)'
       - timestamp:
           source: timestamp
-          format: RFC3339Nano
+          format: RFC3339
+          fallback_formats:
+            - "2006-01-02T15:04:05.000Z07:00"
+            - "2006-01-02 15:04:05.000"
       - labels:
           level:
+          service:
+          stack:
+          source_type:
