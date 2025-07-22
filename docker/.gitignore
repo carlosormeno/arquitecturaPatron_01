@@ -1,0 +1,20 @@
+# Ignorar archivos de entorno
+.env
+
+# Ignorar logs
+*.log
+
+# Ignorar archivos de configuración de usuario
+*.swp
+*.swo
+*.bak
+
+# Ignorar archivos de Docker generados
+**/tmp/
+**/cache/
+
+# Ignorar archivos de sistema
+.DS_Store
+Thumbs.db 
+docker/.env
+docker/.env
