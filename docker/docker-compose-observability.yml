@@ -475,27 +475,27 @@ services:
           memory: ${MEMORY_LIMIT_MEDIUM}
     restart: unless-stopped
 
-  opensearch-exporter:
-    image: aeciopires/opensearch_exporter:latest
-    container_name: opensearch-exporter
-    ports:
-      - "9650:9650"
-    command:
-      - '--opensearch.uri=http://opensearch:9200'
-      - '--opensearch.timeout=30s'
-      - '--opensearch.all'
-      - '--opensearch.indices'
-      - '--opensearch.shards'
-      - '--opensearch.indices_settings'
-      - '--opensearch.cluster_settings'
-      - '--web.listen-address=:9650'
-      - '--web.telemetry-path=/metrics'
-    networks:
-      - observability
-    depends_on:
-      opensearch:
-        condition: service_healthy
-    restart: unless-stopped
+#  opensearch-exporter:
+#    image: aeciopires/opensearch_exporter:latest
+#    container_name: opensearch-exporter
+#    ports:
+#      - "9650:9650"
+#    command:
+#      - '--opensearch.uri=http://opensearch:9200'
+#      - '--opensearch.timeout=30s'
+#      - '--opensearch.all'
+#      - '--opensearch.indices'
+#      - '--opensearch.shards'
+#      - '--opensearch.indices_settings'
+#      - '--opensearch.cluster_settings'
+#      - '--web.listen-address=:9650'
+#      - '--web.telemetry-path=/metrics'
+#    networks:
+#      - observability
+#    depends_on:
+#      opensearch:
+#        condition: service_healthy
+#    restart: unless-stopped
 
 # ============================================
 # KAFKA MONITORING
