@@ -15,7 +15,7 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
-      - prometheus-data:/prometheus
+      - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -132,7 +132,7 @@ services:
     user: "0"
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - alertmanager-data:/var/lib/alertmanager
+      - alertmanager_data:/var/lib/alertmanager
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/var/lib/alertmanager'
@@ -212,7 +212,7 @@ services:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - loki-data:/var/lib/loki
+      - loki_data:/var/lib/loki
     networks:
       - observability
     deploy:
@@ -321,8 +321,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${CPU_LIMIT_MEDIUM}'
-          memory: ${MEMORY_LIMIT_MEDIUM}
+          cpus: '${CPU_LIMIT_LARGE}'
+          memory: ${MEMORY_LIMIT_LARGE}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9600/_node/stats"]
       interval: 15s
@@ -395,7 +395,7 @@ services:
       - "9201:9200"  # Puerto diferente para no conflictar con Elasticsearch
       - "9301:9300"
     volumes:
-      - opensearch-data:/usr/share/opensearch/data
+      - opensearch_data:/usr/share/opensearch/data
     ulimits:
       memlock:
         soft: -1
@@ -459,7 +459,7 @@ services:
     volumes:
       - ./logging/fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
       - ./logs:/app/logs:ro
-      - fluentd-data:/var/log/fluentd
+      - fluentd_data:/var/log/fluentd
     environment:
       - FLUENTD_CONF=fluent.conf
       - FLUENTD_OPT=-v
@@ -567,7 +567,7 @@ services:
       - GF_SERVER_DOMAIN=localhost
       - GF_SERVER_ROOT_URL=http://localhost:3000
     volumes:
-      - grafana-storage:/var/lib/grafana
+      - grafana_storage:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
@@ -616,25 +616,25 @@ networks:
 # ============================================
 
 volumes:
-  prometheus-data:
+  prometheus_data:
     name: prometheus_data
-    external: true
-  alertmanager-data:
+    #external: true
+  alertmanager_data:
     name: alertmanager_data
-    external: true
-  grafana-storage:
+    #external: true
+  grafana_storage:
     name: grafana_storage
-    external: true
-  loki-data:
+    #external: true
+  loki_data:
     name: loki_data
-    external: true
+    #external: true
   esdata:
     name: elasticsearch_data
-    external: true
+    #external: true
    # ... volumes existentes ...
-  opensearch-data:
+  opensearch_data:
     name: opensearch_data
-    external: true
-  fluentd-data:
+    #external: true
+  fluentd_data:
     name: fluentd_data
-    external: true
+    #external: true

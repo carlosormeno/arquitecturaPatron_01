@@ -7,7 +7,7 @@ services:
 # ============================================
 
   comando-microservicio:
-    image: comando-microservicio:latest
+    image: comando-microservicio:0.1
     container_name: comando-microservicio
     user: "1001:1001"
     restart: unless-stopped
@@ -48,7 +48,7 @@ services:
       start_period: 90s
 
   consulta-microservicio:
-    image: consulta-microservicio:latest
+    image: consulta-microservicio:0.1
     container_name: consulta-microservicio
     user: "1001:1001"
     restart: unless-stopped
@@ -86,7 +86,7 @@ services:
       start_period: 90s
 
   frontend:
-    image: frontend:latest
+    image: frontend:0.1
     container_name: frontend
     ports:
       - "4200:80"
@@ -125,8 +125,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${CPU_LIMIT_SMALL}'
-          memory: '${MEMORY_LIMIT_XSMALL}'
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: '${MEMORY_LIMIT_MEDIUM}'
 
 # ============================================
 # NETWORKS

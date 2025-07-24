@@ -130,6 +130,15 @@ cp .env.example .env
 # Editar .env con tus valores
 ```
 
+```bash
+#Crear carpetas de logs
+mkdir -p logs/{airflow/{webserver,scheduler,postgres},alfresco/{repo,share,solr,activemq,postgres,sfs,transform,content-app},argocd,command-service,datahub/{backend,frontend,postgres},falco,frontend,gorules/{editor,brms},harbor/{core,jobservice,registry,db,redis},kafka,keycloak/{app,db},kong,mongodb,nifi/{app,registry},nginx-edge,owasp-zap,otel-collector,postgres,qwiet,query-service,snyk,sonarqube,trivy,zookeeper}
+```
+```bash
+#Darles persmisos
+chmod -R 777 logs/
+```
+
 ### 2. **Iniciar Stack Básico** (Recomendado para empezar)
 
 ```bash

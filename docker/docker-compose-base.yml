@@ -7,7 +7,7 @@ services:
 # ============================================
 
   postgres:
-    image: debezium/postgres:17-alpine
+    image: debezium/postgres:17
     container_name: postgres
     restart: always
     ports:
@@ -311,19 +311,19 @@ networks:
 volumes:
   pgdata:
     name: postgres_data
-    external: true
+    #external: true
   mongodata:
     name: mongo_data
-    external: true
+    #external: true
   kafka_data:
     name: kafka_data
-    external: true
+    #external: true
   zookeeper_data:
     name: zookeeper_data
-    external: true
+    #external: true
   zookeeper_logs:
     name: zookeeper_logs
-    external: true
+    #external: true
   kong-db-data:
     name: kong_db_data
-    external: true
+    #external: true
