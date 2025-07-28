@@ -71,7 +71,7 @@ export class AuthService {
   }
 
   // ✅ Obtener token JWT de Keycloak
-  getToken(): string | undefined {
+  getToken(): Promise<string | undefined> {
     return this.keycloakService.getToken();
   }
 
