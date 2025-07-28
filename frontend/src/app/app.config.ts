@@ -29,7 +29,7 @@ export const appConfig: ApplicationConfig = {
     // ✅ Keycloak configuration para Angular standalone
     provideKeycloak({
       config: {
-        url: 'http://localhost',
+        url: 'http://localhost:8080',
         realm: 'mi-app',
         clientId: 'angular-app'
       },

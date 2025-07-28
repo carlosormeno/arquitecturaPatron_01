@@ -1,12 +1,12 @@
 import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { KeycloakService } from 'keycloak-angular';
+import { injectKeycloak } from 'keycloak-angular';
 import { catchError, tap, switchMap } from 'rxjs/operators';
 import { throwError, from } from 'rxjs';
 import { TelemetryService } from '../telemetry.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const keycloakService = inject(KeycloakService);
+  const keycloakService = injectKeycloak();
   const telemetry = inject(TelemetryService);
 
   // Generar correlation ID único para cada request

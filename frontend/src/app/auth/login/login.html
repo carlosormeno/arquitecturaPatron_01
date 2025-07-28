@@ -1,16 +1,4 @@
 <h2>Iniciar Sesión</h2>
 
-<form (ngSubmit)="login()" #loginForm="ngForm">
-  <mat-form-field appearance="fill">
-    <mat-label>Usuario</mat-label>
-    <input matInput name="username" [(ngModel)]="username" required />
-  </mat-form-field>
-
-  <mat-form-field appearance="fill">
-    <mat-label>Contraseña</mat-label>
-    <input matInput type="password" name="password" [(ngModel)]="password" required />
-  </mat-form-field>
-
-  <button mat-raised-button color="primary" type="submit">Ingresar</button>
-</form>
+<button mat-raised-button color="primary" (click)="login()">Ingresar con Keycloak</button>
 
