@@ -70,6 +70,9 @@ services:
       - backend
       - messaging
       - observability
+    depends_on:
+      comando-microservicio:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -86,7 +89,7 @@ services:
       start_period: 90s
 
   frontend:
-    image: frontend:0.1
+    image: frontend:0.2.1
     container_name: frontend
     ports:
       - "4200:80"
@@ -95,6 +98,9 @@ services:
     networks:
       - apps
       - frontend
+    depends_on:
+      consulta-microservicio:
+        condition: service_healthy
     deploy:
       resources:
         limits:

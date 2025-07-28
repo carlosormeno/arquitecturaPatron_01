@@ -8,7 +8,9 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideToastr } from 'ngx-toastr';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { TelemetryService } from './telemetry.service';
-import { provideKeycloak } from 'keycloak-angular';
+//import { provideKeycloak } from 'keycloak-angular';
+import {
+  provideKeycloak} from 'keycloak-angular';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -30,7 +32,7 @@ export const appConfig: ApplicationConfig = {
     provideKeycloak({
       config: {
         url: 'http://localhost:8080',
-        realm: 'mi-app',
+        realm: 'arquitecturaTI',
         clientId: 'angular-app'
       },
       initOptions: {
