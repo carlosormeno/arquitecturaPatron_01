@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 //import { HttpClient } from '@angular/common/http';
-import { KeycloakService } from 'keycloak-angular';
+import { injectKeycloak } from 'keycloak-angular';
 import { from, Observable, tap } from 'rxjs';
 
 /*export interface AuthResponse {
@@ -51,7 +51,7 @@ export class AuthService {
 
   //constructor() { }
 
-  private keycloakService = inject(KeycloakService);
+  private keycloakService = injectKeycloak();
 
   // ✅ Login ahora redirige a Keycloak
   login(): Observable<boolean> {
