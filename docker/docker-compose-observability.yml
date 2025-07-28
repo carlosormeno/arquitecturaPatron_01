@@ -567,7 +567,7 @@ services:
       - GF_SERVER_DOMAIN=localhost
       - GF_SERVER_ROOT_URL=http://localhost:3000
     volumes:
-      - grafana_storage:/var/lib/grafana
+      - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
@@ -618,23 +618,23 @@ networks:
 volumes:
   prometheus_data:
     name: prometheus_data
-    #external: true
+    external: true
   alertmanager_data:
     name: alertmanager_data
-    #external: true
-  grafana_storage:
-    name: grafana_storage
-    #external: true
+    external: true
+  grafana_data:
+    name: grafana_data
+    external: true
   loki_data:
     name: loki_data
-    #external: true
+    external: true
   esdata:
     name: elasticsearch_data
-    #external: true
+    external: true
    # ... volumes existentes ...
   opensearch_data:
     name: opensearch_data
-    #external: true
+    external: true
   fluentd_data:
     name: fluentd_data
-    #external: true
+    external: true

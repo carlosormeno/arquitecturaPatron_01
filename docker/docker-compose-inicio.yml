@@ -71,11 +71,52 @@ services:
       - registry
       - apps
     volumes:
-      # Fuerza la creación de volúmenes compartidos
-      - shared_logs:/tmp/logs
-      - shared_config:/tmp/config
-      - shared_backups:/tmp/backups
-      - shared_certificates:/tmp/certs
+      # Fuerza la creación de volúmenes
+
+      # Bases de datos
+      - postgres_data:/data/postgres
+      - mongo_data:/data/mongo
+      - kong_db_data:/data/kong
+
+      # Messaging
+      - kafka_data:/messaging/kafka
+      - zookeeper_data:/messaging/zookeeper-data
+      - zookeeper_logs:/messaging/zookeeper-logs
+
+      # Observabilidad
+      - prometheus_data:/observability/prometheus
+      - grafana_data:/observability/grafana
+      - elasticsearch_data:/observability/elasticsearch
+      - alertmanager_data:/observability/alertmanager
+      - loki_data:/observability/loki
+      - opensearch_data:/observability/opensearch
+      - fluentd_data:/observability/fluentd
+
+      # Recursos compartidos
+      - shared_logs:/shared/logs
+      - shared_config:/shared/config
+      - shared_backups:/shared/backups
+      - shared_certificates:/shared/certs
+
+      # Identity & Security
+      - keycloak_data:/identity/keycloak
+      - vault_data:/security/vault
+
+      # Content Management
+      - alfresco_data:/content/alfresco
+
+      # Data Platform
+      - nifi_data:/dataplatform/nifi
+      - datahub_data:/dataplatform/datahub
+
+      # Workflow
+      - airflow_data:/workflow/airflow
+
+      # CI/CD
+      - gitea_data:/cicd/gitea
+      - nexus_data:/cicd/nexus
+      - harbor_data:/cicd/harbor
+
     deploy:
       resources:
         limits:
@@ -422,11 +463,13 @@ volumes:
    # ... volumes existentes ...
   opensearch_data:
     name: opensearch_data
+    labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Opensearch indices and data"
   
   fluentd_data:
     name: fluentd_data
+    labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Fluentd indices and data"
 

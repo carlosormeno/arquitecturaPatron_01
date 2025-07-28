@@ -2,10 +2,9 @@ import { inject } from '@angular/core';
 import { CanActivateFn } from '@angular/router';
 import { AuthService } from './auth';
 import { Router } from '@angular/router';
-import { injectKeycloak } from 'keycloak-angular';
 
 export const authGuard: CanActivateFn = (route, state) => {
-  /*const authService = inject(AuthService);
+  const authService = inject(AuthService);
   const router = inject(Router);
 
   if (authService.isAuthenticated()) {
@@ -13,19 +12,5 @@ export const authGuard: CanActivateFn = (route, state) => {
   } else {
     router.navigate(['/login']);
     return false;
-  }*/
-
-   const keycloak = injectKeycloak();
-
-  // ✅ Verificación simplificada para v19
-  if (keycloak.isLoggedIn()) {
-    return true;
   }
-
-  // ✅ Login automático si no está autenticado
-  keycloak.login({
-    redirectUri: window.location.origin + state.url
-  });
-  
-  return false;
 };

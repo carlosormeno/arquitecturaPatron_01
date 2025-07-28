@@ -14,7 +14,7 @@ services:
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: keycloak123
     volumes:
-      - keycloak-db-data:/var/lib/postgresql/data
+      - keycloak_data:/var/lib/postgresql/data
       - ./logs/keycloak/db:/var/log/postgresql
     networks:
       - identity
@@ -75,7 +75,7 @@ services:
           cpus: '1'
           memory: 1g
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -104,6 +104,6 @@ networks:
 # ============================================
 
 volumes:
-  keycloak-db-data:
-    name: keycloak_db_data
+  keycloak_data:
+    name: keycloak_data
     external: true

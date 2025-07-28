@@ -26,8 +26,6 @@
     "@opentelemetry/resources": "^1.26.0",
     "@opentelemetry/sdk-trace-web": "^1.26.0",
     "@opentelemetry/semantic-conventions": "^1.26.0",
-    "keycloak-angular": "^20.0.0",
-    "keycloak-js": "^26.2.0",
     "ngx-toastr": "^19.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",

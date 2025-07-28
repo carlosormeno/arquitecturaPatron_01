@@ -8,7 +8,6 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideToastr } from 'ngx-toastr';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { TelemetryService } from './telemetry.service';
-import { provideKeycloak } from 'keycloak-angular';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -26,19 +25,5 @@ export const appConfig: ApplicationConfig = {
 
     // ✅ Telemetry service (se inicializará automáticamente)
     TelemetryService,
-    // ✅ Keycloak configuration para Angular standalone
-    provideKeycloak({
-      config: {
-        url: 'http://localhost',
-        realm: 'mi-app',
-        clientId: 'angular-app'
-      },
-      initOptions: {
-        onLoad: 'check-sso',
-        silentCheckSsoRedirectUri: window.location.origin + '/assets/silent-check-sso.html',
-        checkLoginIframe: false,
-        pkceMethod: 'S256'
-      }
-    })
   ]
 };

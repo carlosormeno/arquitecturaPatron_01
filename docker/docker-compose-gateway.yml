@@ -14,20 +14,25 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d/kong-proxy.conf:/etc/nginx/conf.d/default.conf:ro
       - ./logs/nginx-edge:/var/log/nginx
     networks:
       - frontend
       - gateway
+    depends_on:
+      kong:
+        condition: service_healthy
     deploy:
       resources:
         limits:
           cpus: '1'
           memory: 512m
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/nginx_status"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: 15s
       timeout: 5s
       retries: 3
+      start_period: 30s
 
 # ============================================
 # API GATEWAY - KONG
