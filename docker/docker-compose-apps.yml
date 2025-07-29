@@ -89,7 +89,7 @@ services:
       start_period: 90s
 
   frontend:
-    image: frontend:0.2.1
+    image: frontend:0.2.6
     container_name: frontend
     ports:
       - "4200:80"

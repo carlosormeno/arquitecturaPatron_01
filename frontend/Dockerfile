@@ -33,8 +33,11 @@ RUN apk add --no-cache wget
 #COPY --from=builder /app/dist/frontend /usr/share/nginx/html
 COPY --from=builder /app/dist/frontend/browser/ /usr/share/nginx/html/
 
+# Copia silent-check-sso.html al directorio público
+COPY src/assets/silent-check-sso.html /usr/share/nginx/html/
+
 # Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginxFront.conf /etc/nginx/nginx.conf
 
 # Create nginx user and set proper permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html && \

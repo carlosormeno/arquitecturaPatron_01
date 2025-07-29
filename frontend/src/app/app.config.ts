@@ -31,14 +31,15 @@ export const appConfig: ApplicationConfig = {
     // ✅ Keycloak configuration para Angular standalone
     provideKeycloak({
       config: {
-        url: 'http://localhost:8080',
+        url: 'http://localhost/realms/arquitecturaTI',
         realm: 'arquitecturaTI',
         clientId: 'angular-app'
       },
       initOptions: {
-        onLoad: 'check-sso',
+        //onLoad: 'check-sso',
+        onLoad: 'login-required',
         // The silent SSO check file is served from the root path
-        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+        //silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
         checkLoginIframe: false,
         pkceMethod: 'S256'
       }
