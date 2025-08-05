@@ -206,7 +206,6 @@ services:
 # ============================================
 
   loki:
-    profiles: ["loki"]
     image: grafana/loki:2.9.15
     container_name: loki
     ports:
@@ -229,7 +228,6 @@ services:
       start_period: 30s
 
   promtail:
-    profiles: ["loki"]
     image: grafana/promtail:2.9.15
     container_name: promtail
     volumes:
@@ -252,7 +250,6 @@ services:
 # ============================================
 
   elasticsearch:
-    profiles: ["elk"]
     image: docker.elastic.co/elasticsearch/elasticsearch:8.18.2
     container_name: elasticsearch
     environment:
@@ -282,7 +279,6 @@ services:
       start_period: 60s
 
   elasticsearch-exporter:
-    profiles: ["elk"]
     image: quay.io/prometheuscommunity/elasticsearch-exporter:latest
     container_name: elasticsearch-exporter
     ports:
@@ -309,7 +305,6 @@ services:
     restart: unless-stopped
 
   logstash:
-    profiles: ["elk"]
     image: docker.elastic.co/logstash/logstash:8.18.2
     container_name: logstash
     ports:
@@ -336,7 +331,6 @@ services:
       start_period: 60s
 
   kibana:
-    profiles: ["elk"]
     image: docker.elastic.co/kibana/kibana:8.18.2
     container_name: kibana
     ports:
@@ -365,7 +359,6 @@ services:
       start_period: 60s
 
   filebeat:
-    profiles: ["elk"]
     build:
       context: ./filebeat
     container_name: filebeat
@@ -388,7 +381,6 @@ services:
 # ============================================
 
   opensearch:
-    profiles: ["opensearch"]
     image: opensearchproject/opensearch:2.17.1
     container_name: opensearch
     environment:
@@ -429,7 +421,6 @@ services:
       start_period: 60s
 
   opensearch-dashboards:
-    profiles: ["opensearch"]
     image: opensearchproject/opensearch-dashboards:2.17.1
     container_name: opensearch-dashboards
     ports:
@@ -457,7 +448,6 @@ services:
       start_period: 60s
 
   fluentd:
-    profiles: ["opensearch"]
     build:
       context: ./fluentd
       dockerfile: Dockerfile
