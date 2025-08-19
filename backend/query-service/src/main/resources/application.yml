@@ -9,6 +9,14 @@ spring:
       host: localhost
       port: 27017
       database: productos_db
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Puedes usar SOLO issuer-uri (recomendado). Spring descubrirá el JWKS.
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}}
+          # Si prefieres fijar JWKS directamente, usa jwk-set-uri (usa uno u otro, no ambos):
+          # jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8080/realms/arquitecturaTI/protocol/openid-connect/certs}
 
 # ✅ Kafka Configuration optimizada
 spring.kafka:
@@ -26,9 +34,11 @@ spring.kafka:
     heartbeat-interval-ms: 3000
 
 # ✅ JWT Configuration
-jwt:
-  secret: ${JWT_SECRET:tu-clave-super-segura-de-al-menos-32-caracteres-para-desarrollo}
-  expiration: ${JWT_EXPIRATION:3600000}
+#jwt:
+#  secret: ${JWT_SECRET:tu-clave-super-segura-de-al-menos-32-caracteres-para-desarrollo}
+#  expiration: ${JWT_EXPIRATION:3600000}
+
+
 
 # ✅ Observability Configuration
 management:

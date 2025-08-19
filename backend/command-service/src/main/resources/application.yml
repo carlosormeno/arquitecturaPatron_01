@@ -13,11 +13,18 @@ spring:
       ddl-auto: update
     show-sql: false # ✅ Cambiado a false para reducir logs
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Opción 1 (recomendada): un solo env var con el issuer completo
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}}
+
 
 # ✅ JWT Configuration
-jwt:
-  secret: ${JWT_SECRET:tu-clave-super-segura-de-al-menos-32-caracteres-para-desarrollo}
-  expiration: ${JWT_EXPIRATION:3600000}
+#jwt:
+#  secret: ${JWT_SECRET:tu-clave-super-segura-de-al-menos-32-caracteres-para-desarrollo}
+#  expiration: ${JWT_EXPIRATION:3600000}
 
 # ✅ Observability Configuration
 management:

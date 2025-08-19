@@ -8,10 +8,12 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION, SEMRESATTRS_DEPLOYMENT_ENVIRON
 import { trace, context, SpanStatusCode } from '@opentelemetry/api';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FileLogger } from './services/file-logger';
+import { environment } from '../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
+
 export class TelemetryService {
   //private provider: WebTracerProvider;
   private provider!: WebTracerProvider;
@@ -22,8 +24,9 @@ export class TelemetryService {
   private readonly flushInterval = 5000; // 5 segundos
 
   // ✅ Endpoint del backend para logs
-  private readonly logEndpoint = 'http://locahost:8000/api/logs/frontend';
-  private readonly logBatchEndpoint = 'http://localhost:8000/api/logs/frontend/batch';
+  //private readonly logEndpoint = 'http://locahost:8000/api/logs/frontend';
+  private readonly logEndpoint = `${environment.apiBase}/logs/frontend`;
+  private readonly logBatchEndpoint = `${environment.apiBase}/logs/frontend/batch`;
 
 
   constructor(private http: HttpClient) {
@@ -38,7 +41,7 @@ export class TelemetryService {
   private initializeTracing() {
     // Configurar el exporter OTLP
     const traceExporter = new OTLPTraceExporter({
-      url: 'http://localhost:4318/v1/traces',
+      url: 'http://localhost:8000/otel/v1/traces',
       headers: {
         'Content-Type': 'application/json'
       }
@@ -155,6 +158,12 @@ export class TelemetryService {
     // Opcional: enviar directamente a Loki
     //this.sendLogToLoki(logEntry);
   }
+
+  logHttp(entry: HttpLog): void {
+  // Reusa lo que ya tienes
+  this.logToConsole?.(entry.error ? 'error' : 'info', 'http', entry);
+  // (Opcional) aquí podrías crear/terminar spans OTel, añadir atributos, etc.
+}
 
   // ✅ NUEVO: Escribir logs a archivo local para Promtail
   private async writeLogToFile(logEntry: any): Promise<void> {
@@ -359,4 +368,13 @@ export class TelemetryService {
     };
   }
 
+}
+
+export interface HttpLog {
+  url: string;
+  method: string;
+  status: number;
+  duration: number;
+  correlationId?: string;
+  error?: boolean;
 }

@@ -1,0 +1,148 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: query-service
+
+  # ✅ Database configuration apuntando a contenedor PostgreSQL
+  data:
+    mongodb:
+      host: mongo
+      port: 27017
+      database: productos_db
+      connection-string: mongodb://mongo:27017/productos_db
+
+  # ✅ Kafka configuration apuntando a contenedor
+spring.kafka:
+  bootstrap-servers: kafka:29092
+  consumer:
+    group-id: query-service-group-v2
+    auto-offset-reset: earliest
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    # ✅ Configuraciones para mejor rendimiento
+    enable-auto-commit: true
+    auto-commit-interval: 1000
+    max-poll-records: 500
+    session-timeout-ms: 30000
+    heartbeat-interval-ms: 3000
+    # ✅ Configuraciones adicionales para contenedores
+    fetch-min-size: 1
+    fetch-max-wait: 500
+    properties:
+      # ✅ Configuraciones de red para contenedores
+      request.timeout.ms: 30000
+      retry.backoff.ms: 1000
+
+  # ✅ Spring lifecycle
+  lifecycle:
+    timeout-per-shutdown-phase: 30
+
+  # ✅ Actuator security para desarrollo (más permisivo)
+  security:
+    user:
+      name: admin
+      password: admin123
+      roles: ACTUATOR
+
+# ✅ JWT Configuration (igual que tu configuración actual)
+jwt:
+  secret: ${JWT_SECRET:Sup3r_S3cur3_JWT_K3y_F0r_Pr0duct10n_2024_M1n1mum_32_Ch4r4ct3rs!}
+  expiration: ${JWT_EXPIRATION:3600000}
+
+# ✅ Observability Configuration para desarrollo
+management:
+  security:
+    enabled: false
+  endpoints:
+    web:
+      exposure:
+        # ✅ Más endpoints expuestos en desarrollo para debugging
+        include: "health,info,metrics,prometheus,tracing,loggers,env,beans,configprops"
+        #exclude: ""
+        #exclude: "env,configprops"
+      #base-path: /actuator
+  endpoint:
+    health:
+      show-details: always  # ✅ Mostrar detalles completos en desarrollo
+      #show-details: when_authorized
+    metrics:
+      access: unrestricted
+    prometheus:
+      access: unrestricted
+    loggers:
+      access: unrestricted  # ✅ Permitir cambio de log levels en runtime
+
+  # ✅ OpenTelemetry Tracing para desarrollo
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+
+  # ✅ W3C Trace Context
+  propagation:
+    type: w3c
+
+  # ✅ OTLP Export Configuration apuntando a contenedor
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces
+      timeout: 10s
+      compression: gzip
+      headers:
+        service-name: query-service
+        service-version: 1.0.0
+        environment: development
+
+  # ✅ Prometheus Metrics
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# ✅ Structured Logging Configuration para desarrollo
+logging:
+  level:
+    root: INFO
+    com.ejemplo.query_service: DEBUG  # ✅ Tu package en DEBUG
+
+    # ✅ Spring frameworks en INFO para desarrollo
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.springframework.kafka: INFO
+    org.springframework.transaction: INFO
+
+    # ✅ Database y Kafka logging más verbose en desarrollo
+    #org.springframework.kafka: INFO
+    org.mongodb.driver: INFO
+    org.apache.kafka.clients: INFO
+
+    # ✅ Database logging más verbose en desarrollo
+    #org.springframework.jdbc: INFO
+    #org.hibernate: WARN
+    #org.hibernate.SQL: DEBUG
+    #org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+    # ✅ OpenTelemetry controlado pero no silenciado
+    io.opentelemetry: INFO
+    io.opentelemetry.exporter: WARN
+    io.grpc: WARN
+    okhttp3: WARN
+
+  pattern:
+    # ✅ Pattern con trace context (igual que tu configuración)
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    # ✅ Pattern para archivos (para tu logback-spring.xml)
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+  # ✅ File configuration para logs en contenedor
+  file:
+    name: /app/logs/application.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 1GB
+
+# ✅ Configuraciones adicionales para desarrollo
+debug: false  # ✅ Debug mode off pero con logging detallado
+

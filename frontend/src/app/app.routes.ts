@@ -1,18 +1,33 @@
 import { Routes } from '@angular/router';
-import { Login } from './auth/login/login'; // Ajusta el path si es necesario
-import { ListaProductos } from './productos/lista-productos/lista-productos';
-import { FormularioProducto } from './productos/formulario-producto/formulario-producto';
 import { authGuard } from './auth/auth.guard';
 
 export const routes: Routes = [
-  { path: 'login', component: Login },
-  { path: 'productos', component: ListaProductos, canActivate: [authGuard]},
+  { path: '', redirectTo: 'productos', pathMatch: 'full' },
 
-  //{ path: 'productos', component: ListaProductos, canActivate: [authGuard] }
+  {
+    path: 'productos',
+    canMatch: [authGuard],
+    canActivate: [authGuard],
+    loadComponent: () => import('./productos/lista-productos/lista-productos').then(m => m.ListaProductos)
+  },
+  {
+    path: 'productos/crear',
+    canMatch: [authGuard],
+    canActivate: [authGuard],
+    loadComponent: () => import('./productos/formulario-producto/formulario-producto').then(m => m.FormularioProducto)
+  },
+  {
+    path: 'productos/:id/editar',
+    canMatch: [authGuard],
+    canActivate: [authGuard],
+    loadComponent: () => import('./productos/formulario-producto/formulario-producto').then(m => m.FormularioProducto)
+  },
 
-  { path: 'productos/crear', component: FormularioProducto, canActivate: [authGuard] },
-  { path: 'productos/:id/editar', component: FormularioProducto, canActivate: [authGuard] },
-  { path: '', redirectTo: 'login', pathMatch: 'full' }//,
-  //{ path: '', redirectTo: 'productos', pathMatch: 'full' }
+  // Pública
+  {
+    path: 'login',
+    loadComponent: () => import('./auth/login/login').then(m => m.Login)
+  },
 
+  { path: '**', redirectTo: 'productos' }
 ];

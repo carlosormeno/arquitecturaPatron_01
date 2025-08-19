@@ -7,7 +7,7 @@ services:
 # ============================================
 
   comando-microservicio:
-    image: comando-microservicio:0.1
+    image: comando-microservicio:0.2.7
     container_name: comando-microservicio
     user: "1001:1001"
     restart: unless-stopped
@@ -15,8 +15,8 @@ services:
       - "8081:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      #- JWT_SECRET=${JWT_SECRET}
+      #- JWT_EXPIRATION=${JWT_EXPIRATION}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
@@ -48,7 +48,7 @@ services:
       start_period: 90s
 
   consulta-microservicio:
-    image: consulta-microservicio:0.1
+    image: consulta-microservicio:0.2.1
     container_name: consulta-microservicio
     user: "1001:1001"
     restart: unless-stopped
@@ -89,7 +89,7 @@ services:
       start_period: 90s
 
   frontend:
-    image: frontend:0.2.6
+    image: frontend:0.2.14
     container_name: frontend
     ports:
       - "4200:80"

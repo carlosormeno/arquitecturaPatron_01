@@ -25,7 +25,7 @@ RUN mvn clean package -DskipTests -Dmaven.test.skip=true && \
 FROM eclipse-temurin:21-jre-alpine
 
 # Install wget for health checks
-#RUN apk add --no-cache wget
+RUN apk add --no-cache wget
 
 # Crear usuario no root (excelente práctica de seguridad)
 #RUN addgroup -S spring && adduser -S spring -G spring

@@ -38,7 +38,7 @@ export class FormularioProducto implements OnInit {
         next: () => {
 
           this.router.navigate(['/productos'], {
-            state: { mensaje: 'Producto creado exitosamente', refrescar: true }
+            state: { mensaje: 'Producto actualizado exitosamente', refrescar: true }
           });
 
 

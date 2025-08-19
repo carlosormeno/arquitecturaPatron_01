@@ -1,7 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 //import { HttpClient } from '@angular/common/http';
-import { KeycloakService } from 'keycloak-angular';
-import { from, Observable, tap } from 'rxjs';
+//import { KeycloakService } from 'keycloak-angular';
+import Keycloak from 'keycloak-js';
+import { from, Observable } from 'rxjs';
 
 /*export interface AuthResponse {
   token: string;
@@ -51,7 +52,7 @@ export class AuthService {
 
   //constructor() { }
 
-  private keycloakService = inject(KeycloakService);
+  /*private keycloakService = inject(KeycloakService);
 
   // ✅ Login ahora redirige a Keycloak
   login(): Observable<void> {
@@ -96,5 +97,23 @@ export class AuthService {
     // Solo lo mantenemos para compatibilidad durante la transición
     console.warn('loginWithCredentials is deprecated. Use login() instead.');
     return this.login();
+  }*/
+
+    private kc = inject(Keycloak);
+
+  login(): Observable<void> { return from(this.kc.login()); }
+  logout(): void { this.kc.logout(); }
+
+  async isAuthenticated(): Promise<boolean> { return !!this.kc.authenticated; }
+  async getToken(): Promise<string | undefined> { return this.kc.token ?? undefined; }
+
+  async getUserInfo(): Promise<Record<string, unknown> | undefined> {
+    try { return await this.kc.loadUserInfo(); } catch { return undefined; }
+  }
+
+  hasRole(role: string): boolean {
+    const realmHas = this.kc.realmAccess?.roles?.includes(role) ?? false;
+    const resourceHas = Object.values(this.kc.resourceAccess ?? {}).some((r: any) => (r?.roles ?? []).includes(role));
+    return realmHas || resourceHas;
   }
 }
