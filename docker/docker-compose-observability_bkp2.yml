@@ -420,6 +420,20 @@ services:
       retries: 3
       start_period: 60s
 
+  opensearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:latest
+    container_name: opensearch-exporter
+    command:
+      - '--es.uri=http://opensearch:9201'  # dentro de la red interna ES/OS siempre es 9200
+      - '--es.all'
+    networks:
+      - observability
+    restart: unless-stopped
+    # (opcional para probar desde el host)
+    ports:
+      - "9155:9114"
+
+
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:2.17.1
     container_name: opensearch-dashboards
@@ -533,7 +547,7 @@ services:
       - '--log.level=info'
       - '--topic.filter=.*'
       - '--group.filter=.*'
-      - '--sarama.max-version=2.6.0'
+      #- '--sarama.max-version=2.6.0'
     networks:
       - observability
       - messaging

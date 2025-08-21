@@ -1,0 +1,58 @@
+groups:
+  - name: blackbox_alerts
+    rules:
+      # Alerta cuando un servicio no responde
+      - alert: ServiceDown
+        expr: probe_success == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: "The service at {{ $labels.instance }} has been down for more than 1 minute"
+
+      # Alerta por tiempo de respuesta lento
+      - alert: SlowResponse
+        expr: probe_duration_seconds > 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response from {{ $labels.instance }}"
+          description: "{{ $labels.instance }} is responding slowly ({{ $value }}s)"
+
+      # Alerta por certificado SSL próximo a expirar
+      - alert: SSLCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30  # 30 días
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL certificate expiring soon for {{ $labels.instance }}"
+          description: "SSL certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+
+      # Alerta por certificado SSL expirado
+      - alert: SSLCertExpired
+        expr: probe_ssl_earliest_cert_expiry - time() <= 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SSL certificate expired for {{ $labels.instance }}"
+          description: "SSL certificate for {{ $labels.instance }} has expired"
+
+      - alert: TLSCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 14*24*3600
+        for: 1h
+        labels:
+          {severity: warning}
+
+      # Alerta por código de estado HTTP incorrecto
+      - alert: HTTPStatusCode
+        expr: probe_http_status_code <= 199 OR probe_http_status_code >= 400
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP status code error for {{ $labels.instance }}"
+          description: "HTTP status code is {{ $value }} for {{ $labels.instance }}"

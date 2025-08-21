@@ -16,6 +16,8 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.*;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -31,21 +33,25 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/actuator/health", "/actuator/info",
+                                "/actuator/prometheus", "/actuator/metrics",
                                 "/v3/api-docs/**", "/swagger-ui/**"
                         ).permitAll()
+                        .requestMatchers("/api/**", "/api/productos/**", "/api/logs/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 /*.oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(this::jwtAuthenticationConverter))
-                );*/
+                );
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {
                     var conv = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
                     conv.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter()); // usa tu clase
                     // principal: preferred_username o sub (mantén tu property)
                     conv.setPrincipalClaimName(principalAttribute);
                     jwt.jwtAuthenticationConverter(conv);
-                }));
+                }));*/
 
+
+                .oauth2ResourceServer(oauth -> oauth.jwt(withDefaults()));
         return http.build();
     }
 

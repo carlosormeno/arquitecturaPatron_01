@@ -117,6 +117,59 @@ services:
       - nexus_data:/cicd/nexus
       - harbor_data:/cicd/harbor
 
+            # ========= CONTENT extra =========
+      - alfresco_postgres_data:/content/alfresco-postgres
+      - activemq_data:/content/alfresco-activemq
+      - shared_file_store_data:/content/alfresco-sfs
+      - solr_data:/content/alfresco-solr
+
+      # ========= REGISTRY extra =========
+      - harbor_db_data:/cicd/harbor-db
+      - harbor_redis_data:/cicd/harbor-redis
+      - harbor_registry_data:/cicd/harbor-registry
+      - postgres_nexus_data:/cicd/nexus-postgres
+      - compliance_data:/cicd/compliance
+
+      # ========= WORKFLOW extra =========
+      - airflow_postgres_data:/workflow/airflow-postgres
+      - airflow_dags:/workflow/airflow-dags
+      - airflow_logs:/workflow/airflow-logs
+      - airflow_plugins:/workflow/airflow-plugins
+      - airflow_config:/workflow/airflow-config
+      - redis_data:/workflow/redis
+
+      # ========= SECURITY extra =========
+      - sonarqube_db_data:/security/sonarqube-db
+      - sonarqube_data:/security/sonarqube-data
+      - sonarqube_logs:/security/sonarqube-logs
+      - sonarqube_extensions:/security/sonarqube-extensions
+      - zap_data:/security/zap
+      - trivy_cache:/security/trivy-cache
+      - security_dashboard_data:/security/security-dashboard
+
+      # ========= CI/CD nombres con guion =========
+      - gitea-data:/cicd/gitea-hyphen
+      - jenkins-data:/cicd/jenkins
+
+      # ========= BUSINESS RULES =========
+      - gorules_data:/business/gorules
+
+      # ========= DATA PLATFORM (NiFi / Registry) =========
+      - nifi_database_repository:/dataplatform/nifi/database_repository
+      - nifi_flowfile_repository:/dataplatform/nifi/flowfile_repository
+      - nifi_content_repository:/dataplatform/nifi/content_repository
+      - nifi_provenance_repository:/dataplatform/nifi/provenance_repository
+      - nifi_state:/dataplatform/nifi/state
+      - nifi_logs:/dataplatform/nifi/logs
+      - nifi_registry_database:/dataplatform/nifi_registry/database
+      - nifi_registry_flow_storage:/dataplatform/nifi_registry/flow_storage
+
+      # ========= DATA GOVERNANCE (DataHub) =========
+      - datahub_postgres_data:/governance/datahub-postgres
+      - datahub_elasticsearch_data:/governance/datahub-elasticsearch
+
+
+
     deploy:
       resources:
         limits:
@@ -472,6 +525,201 @@ volumes:
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Fluentd indices and data"
+
+# =======================================================
+      # ========== CONTENT ==========
+  alfresco_postgres_data:
+    name: alfresco_postgres_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=PostgreSQL de Alfresco"
+  activemq_data:
+    name: activemq_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=ActiveMQ para Alfresco"
+  shared_file_store_data:
+    name: shared_file_store_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Alfresco Shared File Store"
+  solr_data:
+    name: solr_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Indice de Alfresco SOLR"
+
+  # ========== REGISTRY ==========
+  harbor_db_data:
+    name: harbor_db_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=DB de Harbor"
+  harbor_redis_data:
+    name: harbor_redis_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Redis de Harbor"
+  harbor_registry_data:
+    name: harbor_registry_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Storage del Registry de Harbor"
+  postgres_nexus_data:
+    name: postgres_nexus_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=DB de Nexus (Postgres)"
+  compliance_data:
+    name: compliance_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Grafana Compliance Dashboard"
+
+  # ========== WORKFLOW ==========
+  airflow_postgres_data:
+    name: airflow_postgres_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=DB de Airflow"
+  airflow_dags:
+    name: airflow_dags
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=DAGs de Airflow"
+  airflow_logs:
+    name: airflow_logs
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Logs de Airflow"
+  airflow_plugins:
+    name: airflow_plugins
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Plugins de Airflow"
+  airflow_config:
+    name: airflow_config
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Config de Airflow"
+  redis_data:
+    name: redis_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Redis (Airflow/otros)"
+
+  # ========== SECURITY ==========
+  sonarqube_db_data:
+    name: sonarqube_db_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=DB de SonarQube"
+  sonarqube_data:
+    name: sonarqube_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Datos de SonarQube"
+  sonarqube_logs:
+    name: sonarqube_logs
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Logs de SonarQube"
+  sonarqube_extensions:
+    name: sonarqube_extensions
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Extensiones/Plugins de SonarQube"
+  zap_data:
+    name: zap_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Workspace de OWASP ZAP"
+  trivy_cache:
+    name: trivy_cache
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Cache de Trivy"
+  security_dashboard_data:
+    name: security_dashboard_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Grafana Security Dashboard"
+
+  # ========== CI/CD (nombres con guion) ==========
+  # Nota: tus servicios usan 'gitea-data' y 'jenkins-data' (con guion).
+  # Para pre-crear esos volúmenes desde 'inicio', define así:
+  gitea-data:
+    name: gitea-data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Gitea (nombre con guion)"
+  jenkins-data:
+    name: jenkins-data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Jenkins (nombre con guion)"
+
+
+        # ========== BUSINESS RULES ==========
+  gorules_data:
+    name: gorules_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=GoRules rules storage"
+
+  # ========== DATA PLATFORM (NiFi / Registry) ==========
+  nifi_database_repository:
+    name: nifi_database_repository
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=NiFi database repository"
+  nifi_flowfile_repository:
+    name: nifi_flowfile_repository
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=NiFi flowfile repository"
+  nifi_content_repository:
+    name: nifi_content_repository
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=NiFi content repository"
+  nifi_provenance_repository:
+    name: nifi_provenance_repository
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=NiFi provenance repository"
+  nifi_state:
+    name: nifi_state
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=NiFi state"
+  nifi_logs:
+    name: nifi_logs
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=NiFi logs"
+  nifi_registry_database:
+    name: nifi_registry_database
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=NiFi Registry database"
+  nifi_registry_flow_storage:
+    name: nifi_registry_flow_storage
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=NiFi Registry flow storage"
+
+  # ========== DATA GOVERNANCE (DataHub) ==========
+  datahub_postgres_data:
+    name: datahub_postgres_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=DataHub Postgres data"
+  datahub_elasticsearch_data:
+    name: datahub_elasticsearch_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=DataHub Elasticsearch data"
 
 # ============================================
 # INFORMACIÓN Y USO

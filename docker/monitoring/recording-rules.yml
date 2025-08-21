@@ -1,0 +1,50 @@
+groups:
+  - name: app_recordings
+    interval: 30s
+    rules:
+      # P95 de latencia por microservicio (Micrometer)
+      - record: app:http_latency_p95:rate5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, job) (rate(http_server_requests_seconds_bucket{job=~"command-service|query-service"}[5m]))
+          )
+
+      # Tasa total de requests por microservicio, desglosado por código
+      - record: app:http_requests_total:rate5m
+        expr: |
+          sum by (job, status) (rate(http_server_requests_seconds_count{job=~"command-service|query-service"}[5m]))
+
+      # Error rate 5xx por microservicio
+      - record: app:http_error_rate_5xx:rate5m
+        expr: |
+          sum by (job) (rate(http_server_requests_seconds_count{status=~"5..", job=~"command-service|query-service"}[5m]))
+          /
+          sum by (job) (rate(http_server_requests_seconds_count{job=~"command-service|query-service"}[5m]))
+
+  - name: es_recordings
+    interval: 30s
+    rules:
+      # 0 green, 1 yellow, 2 red
+      - record: es:cluster_health_status
+        expr: max(elasticsearch_cluster_health_status)
+
+      # Porcentaje de espacio libre (mínimo entre todos los data paths reportados)
+      - record: es:fs_free_ratio:min
+        expr: |
+          min(
+            elasticsearch_filesystem_data_available_bytes
+            / elasticsearch_filesystem_data_size_bytes
+          )
+
+  - name: kafka_recordings
+    interval: 30s
+    rules:
+      # Lag total por consumer group
+      - record: kafka:consumergroup_lag:sum
+        expr: sum by (consumergroup) (kafka_consumergroup_lag)
+
+      # Tasa de mensajes entrantes (JMX exporter)
+      - record: kafka:messages_in_per_sec:rate5m
+        expr: |
+          sum by (job) (rate(kafka_server_brokertopicmetrics_messagesin_total[5m]))

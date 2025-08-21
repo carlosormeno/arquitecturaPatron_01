@@ -7,12 +7,10 @@ import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.*;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -68,7 +66,7 @@ public class JwtDecoderConfig {
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(expectedIssuer);
 
         // 3) (Opcional) Validación de audience
-        OAuth2TokenValidator<Jwt> withAudience = jwt -> {
+        /*OAuth2TokenValidator<Jwt> withAudience = jwt -> {
             if (expectedAudienceCsv == null || expectedAudienceCsv.isBlank()) {
                 return OAuth2TokenValidatorResult.success();
             }
@@ -82,7 +80,35 @@ public class JwtDecoderConfig {
                     new OAuth2Error("invalid_token", "Invalid audience", null));
         };
 
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, withAudience));*/
+
+        /*OAuth2TokenValidator<Jwt> withAudience = jwt -> {
+            if (jwt.getAudience() != null && jwt.getAudience().contains(expectedAudienceCsv)) {
+                return OAuth2TokenValidatorResult.success();
+            }
+            return OAuth2TokenValidatorResult.failure(
+                    new OAuth2Error("invalid_token", "required audience not present", null)
+            );
+        };*/
+
+        OAuth2TokenValidator<Jwt> withAudience = jwt -> {
+            if (expectedAudienceCsv == null || expectedAudienceCsv.isBlank()) {
+                return OAuth2TokenValidatorResult.success(); // sin audience -> no validar
+            }
+            var expected = Arrays.stream(expectedAudienceCsv.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
+            var aud = jwt.getAudience();
+            boolean ok = aud != null && aud.stream().anyMatch(expected::contains);
+            return ok
+                    ? OAuth2TokenValidatorResult.success()
+                    : OAuth2TokenValidatorResult.failure(
+                            new OAuth2Error("invalid_token","Invalid audience",null));
+        };
+
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, withAudience));
+        //decoder.setClaimSetConverter(MappedJwtClaimSetConverter.withDefaults(Collections.emptyMap())); // opcional
+
         return decoder;
     }
 }

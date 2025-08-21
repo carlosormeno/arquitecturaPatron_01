@@ -21,7 +21,7 @@ receivers:
         #  Labels: {{ range .Labels.SortedPairs }}{{ .Name }}: {{ .Value }}{{ end }}
         #  {{ end }}
     webhook_configs:
-      - url: 'http://localhost:5001/webhook'
+      - url: 'http://host.docker.internal:5001/webhook'
         send_resolved: true
 
 inhibit_rules:

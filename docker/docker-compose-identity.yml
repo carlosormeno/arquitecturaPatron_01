@@ -49,14 +49,18 @@ services:
       # Admin Configuration
       KEYCLOAK_ADMIN_USER: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
+
       # Server Configuration
-      KEYCLOAK_HTTP_ENABLED: true
-      KEYCLOAK_HOSTNAME_STRICT: false
+      KEYCLOAK_HTTP_ENABLED: "true"
+      KEYCLOAK_HOSTNAME_STRICT: "false"
       KEYCLOAK_PROXY: edge
-      KEYCLOAK_ENABLE_STATISTICS: true
+      KEYCLOAK_HOSTNAME: localhost
+      KEYCLOAK_HTTP_RELATIVE_PATH: /auth
+      KEYCLOAK_ENABLE_STATISTICS: "true"
       # Performance
-      KEYCLOAK_CACHE_STACK: tcp
+      #KEYCLOAK_CACHE_STACK: tcp
       KEYCLOAK_LOG_LEVEL: INFO
+
     volumes:
       - ./logs/keycloak/app:/opt/bitnami/keycloak/logs
     networks:
@@ -75,7 +79,9 @@ services:
           cpus: '1'
           memory: 1g
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
+      #test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
+      #test: ["CMD", "curl", "-fsSL", "http://localhost:9000/health/ready"]
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:9000/health/ready"]
       interval: 30s
       timeout: 10s
       retries: 5

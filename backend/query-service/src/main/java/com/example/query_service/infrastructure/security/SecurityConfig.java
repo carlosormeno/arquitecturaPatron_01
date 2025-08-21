@@ -11,18 +11,16 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 @EnableWebSecurity
-//@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
-
-    /*@Autowired
-    private JwtRequestFilter_OLD jwtRequestFilter;*/
 
     @Value("${jwt.auth.converter.principal-attribute:preferred_username}")
     private String principalAttribute;
 
-    @Bean
+    //@Bean
     /*public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
@@ -38,7 +36,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }*/
-
+    @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
@@ -46,20 +44,27 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/actuator/health", "/actuator/info",
+                                "/actuator/prometheus", "/actuator/metrics",
                                 "/v3/api-docs/**", "/swagger-ui/**"
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        //.requestMatchers("/actuator/**").permitAll()
+                        //.anyRequest().authenticated()
+                        .requestMatchers("/api/**", "/api/mongoProductos/**").authenticated()
+                        .anyRequest().permitAll()
                 )
                 /*.oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(this::jwtAuthenticationConverter))
                 );*/
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {
+                /*.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {
                     var conv = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
                     conv.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter()); // usa tu clase
                     // principal: preferred_username o sub (mantén tu property)
                     conv.setPrincipalClaimName(principalAttribute);
                     jwt.jwtAuthenticationConverter(conv);
-                }));
+                }))*/
+                .oauth2ResourceServer(oauth -> oauth.jwt(withDefaults()));
+
+        //;
 
         return http.build();
     }

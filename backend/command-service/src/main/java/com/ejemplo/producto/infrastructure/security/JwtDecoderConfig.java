@@ -63,9 +63,10 @@ public class JwtDecoderConfig {
             if (expectedAudienceCsv == null || expectedAudienceCsv.isBlank()) {
                 return OAuth2TokenValidatorResult.success();
             }
-            Set<String> expected = Arrays.stream(expectedAudienceCsv.split(","))
+            var expected = Arrays.stream(expectedAudienceCsv.split(","))
                     .map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
-            List<String> aud = jwt.getAudience();
+            //List<String> aud = jwt.getAudience();
+            var aud = jwt.getAudience();
             boolean ok = aud != null && aud.stream().anyMatch(expected::contains);
             return ok
                     ? OAuth2TokenValidatorResult.success()

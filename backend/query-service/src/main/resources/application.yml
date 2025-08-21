@@ -14,9 +14,16 @@ spring:
       resourceserver:
         jwt:
           # Puedes usar SOLO issuer-uri (recomendado). Spring descubrirá el JWKS.
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}}
+          #issuer-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}}
           # Si prefieres fijar JWKS directamente, usa jwk-set-uri (usa uno u otro, no ambos):
           # jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8080/realms/arquitecturaTI/protocol/openid-connect/certs}
+          jwk-set-uri: http://keycloak:8080/realms/arquitecturaTI/protocol/openid-connect/certs
+
+security:
+  #expected-issuer: "http://localhost:8080/realms/arquitecturaTI"  # <-- EXACTO igual que el token
+  expected-issuer: "http://localhost/auth/realms/arquitecturaTI"  # <-- EXACTO igual que el token
+  # opcional, puedes omitirlo si no quieres validar 'audience' en dev
+  expected-audience-consulta: coms-api
 
 # ✅ Kafka Configuration optimizada
 spring.kafka:
@@ -54,6 +61,10 @@ management:
       access: read_only
     prometheus:
       access: read_only
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
   # ✅ OpenTelemetry Tracing
   tracing:
@@ -86,7 +97,9 @@ logging:
   level:
     root: INFO
     com.example.query_service: DEBUG
-    org.springframework.security: WARN
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    #org.springframework.security: WARN
 
     # ✅ Reduce OpenTelemetry noise
     io.opentelemetry: WARN

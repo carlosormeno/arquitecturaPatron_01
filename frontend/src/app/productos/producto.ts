@@ -19,10 +19,11 @@ export class ProductoService {
   /*private queryUrl = 'http://localhost:8000/api/mongoProductos';
   private commandUrl = 'http://localhost:8000/api/productos';*/
 
-  private queryUrl = `${environment.apiBase}/mongoProductos`;
-  private commandUrl = `${environment.apiBase}/productos`;
+  private queryUrl = `${environment.apiBaseConsulta}/mongoProductos`;
+  private commandUrl = `${environment.apiBaseComando}/productos`;
 
   getProductos(): Observable<Producto[]> {
+    console.log('📤 Enviando URL ', this.queryUrl);
     return this.http.get<Producto[]>(this.queryUrl);
   }
 

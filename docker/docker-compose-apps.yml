@@ -7,7 +7,7 @@ services:
 # ============================================
 
   comando-microservicio:
-    image: comando-microservicio:0.2.7
+    image: comando-microservicio:0.2.12
     container_name: comando-microservicio
     user: "1001:1001"
     restart: unless-stopped
@@ -48,7 +48,7 @@ services:
       start_period: 90s
 
   consulta-microservicio:
-    image: consulta-microservicio:0.2.1
+    image: consulta-microservicio:0.2.9
     container_name: consulta-microservicio
     user: "1001:1001"
     restart: unless-stopped
@@ -89,7 +89,7 @@ services:
       start_period: 90s
 
   frontend:
-    image: frontend:0.2.14
+    image: frontend:0.2.19
     container_name: frontend
     ports:
       - "4200:80"

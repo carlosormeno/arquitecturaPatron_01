@@ -44,19 +44,23 @@ services:
       - activemq-data:/opt/activemq/data
       - ./logs/alfresco/activemq:/opt/activemq/data/kahadb.log
     networks:
-      - content
+      - content       # (deja tus redes tal cual)
       - backend
     deploy:
       resources:
         limits:
           cpus: '0.5'
           memory: 512m
+    environment:
+      ACTIVEMQ_USER: ${ACTIVEMQ_USER:-admin}
+      ACTIVEMQ_PASSWORD: ${ACTIVEMQ_PASSWORD:-admin}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8161/admin"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      test: ["CMD-SHELL", "(curl -fsS -u ${ACTIVEMQ_USER:-admin}:${ACTIVEMQ_PASSWORD:-admin} http://localhost:8161/api/jolokia/version || curl -fsS -u ${ACTIVEMQ_USER:-admin}:${ACTIVEMQ_PASSWORD:-admin} http://localhost:8161/admin) >/dev/null"]
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+      retries: ${HEALTHCHECK_RETRIES:-5}
+      start_period: ${HEALTHCHECK_START_PERIOD:-60s}
+
 
   alfresco-shared-file-store:
     image: alfresco/alfresco-shared-file-store:latest
@@ -80,10 +84,12 @@ services:
           cpus: '0.5'
           memory: 512m
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8099/ready"]
+      #test: ["CMD", "curl", "-f", "http://localhost:8099/ready"]
+      test: ["CMD-SHELL", "(curl -fsS http://localhost:8099/ready || curl -fsS http://localhost:8099/actuator/health) >/dev/null"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
 
   alfresco-transform-core-aio:
     image: alfresco/alfresco-transform-core-aio:5.1.7
@@ -114,7 +120,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8090/ready"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 120s
 
   alfresco-solr:
     image: alfresco/alfresco-search-services:2.0.15
@@ -130,19 +137,23 @@ services:
       SOLR_CREATE_ALFRESCO_DEFAULTS: alfresco,archive
       SOLR_JAVA_MEM: "-Xms2g -Xmx2g"
       SOLR_OPTS: "-Dsolr.jetty.request.header.size=1000000 -Dsolr.jetty.threads.min=10 -Dsolr.jetty.threads.max=10000 -Dsolr.jetty.threads.idle.timeout=5000"
+      JAVA_TOOL_OPTIONS: "-Dalfresco.secureComms=secret -Dalfresco.secureComms.secret=secret"
     volumes:
       - solr-data:/opt/alfresco-search-services/data
       - ./logs/alfresco/solr:/opt/alfresco-search-services/logs
     networks:
       - content
       - backend
+    depends_on:
+      alfresco-repository:
+        condition: service_started
     deploy:
       resources:
         limits:
           cpus: '2'
           memory: 2g
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8983/solr/admin/cores?action=STATUS"]
+      test: ["CMD-SHELL", "curl -sf -H 'X-Alfresco-Search-Secret: secret' 'http://localhost:8983/solr/alfresco/admin/ping?wt=json' | grep -q '\"status\":\"OK\"'"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -153,9 +164,12 @@ services:
     container_name: alfresco-repository
     restart: unless-stopped
     ports:
-      - "8082:8080"
+      - "8072:8080"
+    command: >
+      bash -lc "mkdir -p /usr/local/tomcat/alf_data/keystore &&
+                chmod 777 /usr/local/tomcat/alf_data/keystore &&
+                exec catalina.sh run"
     environment:
-      # Database
       JAVA_OPTS: >-
         -Ddb.driver=org.postgresql.Driver
         -Ddb.username=alfresco
@@ -171,17 +185,25 @@ services:
         -Dshare.host=127.0.0.1
         -Dshare.port=8080
         -Dalfresco.host=localhost
-        -Dalfresco.port=8082
-        -Daos.baseUrlOverwrite=http://localhost:8082/alfresco/aos
-        -Dmessaging.broker.url="failover:(nio://alfresco-activemq:61616)?timeout=3000&jms.useCompression=true"
+        -Dalfresco.port=8072
+        -Daos.baseUrlOverwrite=http://localhost:8072/alfresco/aos
+        -Dmessaging.broker.url='failover:(nio://alfresco-activemq:61616)?timeout=3000&jms.useCompression=true'
         -Ddeployment.method=DOCKER_COMPOSE
         -DlocalTransform.core-aio.url=http://alfresco-transform-core-aio:8090/
         -Dcsrf.filter.enabled=false
         -XX:MinRAMPercentage=50
         -XX:MaxRAMPercentage=80
+        -Ddir.root=/usr/local/tomcat/alf_data
+        -Dencryption.keystore.type=pkcs12
+        -Dencryption.keystore.location=/usr/local/tomcat/alf_data/keystore/keystore
+        -Dmetadata-keystore.aliases=metadata
+        -Dmetadata-keystore.password=${ALFRESCO_KEYSTORE_PASS}
+        -Dmetadata-keystore.metadata.password=${ALFRESCO_METADATA_PASS}
+        -Dmetadata-keystore.metadata.algorithm=DESede
     volumes:
       - alfresco-data:/usr/local/tomcat/alf_data
       - ./logs/alfresco/repo:/usr/local/tomcat/logs
+      - ./tomcat/localhost:/usr/local/tomcat/conf/Catalina/localhost
     networks:
       - content
       - backend
@@ -213,7 +235,7 @@ services:
     container_name: alfresco-share
     restart: unless-stopped
     ports:
-      - "8083:8080"
+      - "8073:8080"
     environment:
       REPO_HOST: alfresco-repository
       REPO_PORT: 8080
@@ -221,7 +243,7 @@ services:
         -XX:MinRAMPercentage=50
         -XX:MaxRAMPercentage=80
         -Dalfresco.host=localhost
-        -Dalfresco.port=8082
+        -Dalfresco.port=8072
         -Dalfresco.context=alfresco
         -Dalfresco.protocol=http
     volumes:
@@ -241,7 +263,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8080/share/page/"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 120s
 
   alfresco-content-app:
@@ -253,7 +275,8 @@ services:
     environment:
       APP_CONFIG_PROVIDER: ECM
       APP_CONFIG_AUTH_TYPE: BASIC
-      APP_CONFIG_ECM_HOST: http://localhost:8082
+      APP_CONFIG_ECM_HOST: http://localhost:8072
+      APP_CONFIG_ECM_CONTEXT: alfresco   # <-- opcional
     volumes:
       - ./logs/alfresco/content-app:/var/log/nginx
     networks:
@@ -271,7 +294,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 120s
 
 # ============================================
 # NETWORKS

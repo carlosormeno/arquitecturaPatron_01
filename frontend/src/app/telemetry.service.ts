@@ -25,8 +25,9 @@ export class TelemetryService {
 
   // ✅ Endpoint del backend para logs
   //private readonly logEndpoint = 'http://locahost:8000/api/logs/frontend';
-  private readonly logEndpoint = `${environment.apiBase}/logs/frontend`;
-  private readonly logBatchEndpoint = `${environment.apiBase}/logs/frontend/batch`;
+  
+  private readonly logEndpoint = `${environment.apiBaseComando}/logs/frontend`;
+  private readonly logBatchEndpoint = `${environment.apiBaseComando}/logs/frontend/batch`;
 
 
   constructor(private http: HttpClient) {

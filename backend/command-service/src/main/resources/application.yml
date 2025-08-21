@@ -18,8 +18,14 @@ spring:
       resourceserver:
         jwt:
           # Opción 1 (recomendada): un solo env var con el issuer completo
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}}
+          #issuer-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}}
+        jwk-set-uri: http://keycloak:8080/auth/realms/arquitecturaTI/protocol/openid-connect/certs
 
+security:
+  #expected-issuer: "http://localhost:8080/realms/arquitecturaTI"  # <-- EXACTO igual que el token
+  expected-issuer: "http://localhost/auth/realms/arquitecturaTI"  # <-- EXACTO igual que el token
+  # opcional, puedes omitirlo si no quieres validar 'audience' en dev
+  expected-audience-comando: cmms-api
 
 # ✅ JWT Configuration
 #jwt:
@@ -40,7 +46,10 @@ management:
       access: unrestricted
     prometheus:
       access: unrestricted
-
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   # ✅ OpenTelemetry Tracing
   tracing:
     enabled: true

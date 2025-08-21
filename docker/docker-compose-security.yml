@@ -91,19 +91,20 @@ services:
       - ./security/snyk:/reports      # Reportes de salida
       - /var/run/docker.sock:/var/run/docker.sock:ro  # Para container scanning
     working_dir: /app
-    command: >
-      sh -c "
-      echo 'Iniciando análisis Snyk...' &&
-      snyk auth ${SNYK_TOKEN} &&
-      echo 'Escaneando dependencias...' &&
-      snyk test --json > /reports/dependencies-$(date +%Y%m%d-%H%M%S).json || true &&
-      echo 'Escaneando código...' &&
-      snyk code test --json > /reports/code-$(date +%Y%m%d-%H%M%S).json || true &&
-      echo 'Escaneando imágenes Docker...' &&
-      snyk container test postgres:15 --json > /reports/container-$(date +%Y%m%d-%H%M%S).json || true &&
-      echo 'Análisis completado. Reportes en /reports/' &&
-      tail -f /dev/null
-      "
+    #command: >
+    #  sh -c "
+    #  echo 'Iniciando análisis Snyk...' &&
+    #  snyk auth ${SNYK_TOKEN} &&
+    #  echo 'Escaneando dependencias...' &&
+    #  snyk test --json > /reports/dependencies-$(date +%Y%m%d-%H%M%S).json || true &&
+    #  echo 'Escaneando código...' &&
+    #  snyk code test --json > /reports/code-$(date +%Y%m%d-%H%M%S).json || true &&
+    #  echo 'Escaneando imágenes Docker...' &&
+    #  snyk container test postgres:15 --json > /reports/container-$(date +%Y%m%d-%H%M%S).json || true &&
+    #  echo 'Análisis completado. Reportes en /reports/' &&
+    #  tail -f /dev/null
+    #  "
+    command: ["sh", "-lc", "tail -f /dev/null"]
     networks:
       - security
       - backend
@@ -117,6 +118,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
 
   # DAST - Dynamic Analysis
   owasp-zap:
@@ -138,21 +140,27 @@ services:
       - security
       - backend
     command: zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=zap-api-key-12345
+    #command: >-
+    #  zap.sh -daemon -host 0.0.0.0 -port 8080
+    #  -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true
+    #  -config api.key=zap-api-key-12345
     deploy:
       resources:
         limits:
           cpus: '1'
           memory: 1g
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/JSON/core/view/version/"]
+      #test: ["CMD", "curl", "-f", "http://localhost:8080/JSON/core/view/version/"]
+      test: ["CMD-SHELL", "(wget -qO- 'http://localhost:8080/JSON/core/view/version/?apikey=zap-api-key-12345' || curl -fsS 'http://localhost:8080/JSON/core/view/version/?apikey=zap-api-key-12345') >/dev/null"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
 
   # IAST - Interactive Analysis
   falco:
     image: falcosecurity/falco-no-driver:0.39.1
+    #profiles: ["disabled"]
     container_name: falco
     restart: unless-stopped
     privileged: true
@@ -202,10 +210,12 @@ services:
           cpus: '0.5'
           memory: 512m
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      #test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      test: ["CMD-SHELL", "(wget -qO- http://localhost:8080/healthz || curl -fsS http://localhost:8080/healthz) >/dev/null"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 120s
 
   # ============================================
   # POLICY AS CODE
@@ -228,10 +238,12 @@ services:
           cpus: '0.3'
           memory: 256m
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8181/health"]
+      #test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8181/health"]
+      test: ["CMD", "opa", "health", "--server", "http://localhost:8181"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 20s
 
   # Security Dashboard
   security-dashboard:
