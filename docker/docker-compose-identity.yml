@@ -51,16 +51,30 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin123
 
       # Server Configuration
-      KEYCLOAK_HTTP_ENABLED: "true"
-      KEYCLOAK_HOSTNAME_STRICT: "false"
-      KEYCLOAK_PROXY: edge
-      KEYCLOAK_HOSTNAME: localhost
-      KEYCLOAK_HTTP_RELATIVE_PATH: /auth
-      KEYCLOAK_ENABLE_STATISTICS: "true"
+      #KEYCLOAK_HTTP_ENABLED: "true"
+      #KEYCLOAK_HOSTNAME_STRICT: "false"
+      #KEYCLOAK_PROXY: edge
+      #KEYCLOAK_HOSTNAME: localhost
+      #KEYCLOAK_HTTP_RELATIVE_PATH: /auth
+      #KEYCLOAK_ENABLE_STATISTICS: "true"
       # Performance
       #KEYCLOAK_CACHE_STACK: tcp
-      KEYCLOAK_LOG_LEVEL: INFO
 
+      # --- Quarkus/hostnames (usa las KC_* oficiales) ---
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: "localhost"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY: edge
+
+      # 👇 hostname público (para el navegador) y back-channel (para contenedores)
+      KC_HOSTNAME_URL: http://localhost/auth
+      KC_HOSTNAME_ADMIN_URL: http://keycloak:8080/auth
+      KC_HOSTNAME_STRICT: "false"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+
+      #KEYCLOAK_ENABLE_STATISTICS: "true"
+      #KEYCLOAK_LOG_LEVEL: INFO
     volumes:
       - ./logs/keycloak/app:/opt/bitnami/keycloak/logs
     networks:

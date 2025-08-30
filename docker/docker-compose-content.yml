@@ -200,6 +200,15 @@ services:
         -Dmetadata-keystore.password=${ALFRESCO_KEYSTORE_PASS}
         -Dmetadata-keystore.metadata.password=${ALFRESCO_METADATA_PASS}
         -Dmetadata-keystore.metadata.algorithm=DESede
+        -Dauthentication.chain=identity-service:identity-service,alfrescoNtlm:alfrescoNtlm
+        -Didentity-service.authentication.enabled=true
+        -Didentity-service.auth-server-url=http://keycloak:8080/auth
+        -Didentity-service.realm=arquitecturaTI
+        -Didentity-service.resource=alfresco
+        -Didentity-service.public-client=true
+        -Didentity-service.client-id.validation.disabled=true
+        -Didentity-service.user-name-claim=preferred_username
+        -Didentity-service.authentication.validation.failure.silent=false
     volumes:
       - alfresco-data:/usr/local/tomcat/alf_data
       - ./logs/alfresco/repo:/usr/local/tomcat/logs
@@ -273,12 +282,31 @@ services:
     ports:
       - "4201:8080"
     environment:
-      APP_CONFIG_PROVIDER: ECM
-      APP_CONFIG_AUTH_TYPE: BASIC
-      APP_CONFIG_ECM_HOST: http://localhost:8072
-      APP_CONFIG_ECM_CONTEXT: alfresco   # <-- opcional
+      #BASE_PATH: /content/
+      #APP_BASE_HREF: /content/
+      #APP_CONFIG_PROVIDER: ECM
+      APP_CONFIG_AUTH_TYPE: OAUTH
+      APP_CONFIG_WITH_CREDENTIALS: "false"
+      #APP_CONFIG_ECM_HOST: /alfresco
+      #APP_CONFIG_ECM_HOST: http://localhost
+
+      #APP_CONFIG_OAUTH2_HOST: http://localhost
+      #APP_CONFIG_OAUTH2_HOST: http://localhost/auth/realms/arquitecturaTI
+      #APP_CONFIG_IDENTITY_HOST: http://localhost/auth/realms/arquitecturaTI
+      #APP_CONFIG_OAUTH2_AUTH_CONTEXT: http://localhost/auth/realms/arquitecturaTI
+
+      #APP_CONFIG_OAUTH2_CLIENTID: aca
+      #APP_CONFIG_OAUTH2_SCOPE: openid profile email
+      #APP_CONFIG_OAUTH2_IMPLICIT_FLOW: "false"
+      #APP_CONFIG_OAUTH2_SILENT_LOGIN: "false"
+      #APP_CONFIG_OAUTH2_REDIRECT_SILENT_IFRAME_URI: /content/assets/silent-refresh.html
+      #APP_CONFIG_OAUTH2_REDIRECT_LOGIN: http://localhost/content/
+      #APP_CONFIG_OAUTH2_REDIRECT_LOGOUT: http://localhost/content/
+      #APP_CONFIG_OAUTH2_STORAGE: sessionStorage
     volumes:
       - ./logs/alfresco/content-app:/var/log/nginx
+      - ./alfresco/assets/app.config.json:/usr/share/nginx/html/app.config.json:ro
+      - ./alfresco/assets/app.config.json:/usr/share/nginx/html/assets/app.config.json:ro
     networks:
       - content
       - frontend
@@ -288,8 +316,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512m
+          cpus: '${CPU_LIMIT_SMALL}'
+          memory: ${MEMORY_LIMIT_XSMALL}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 30s

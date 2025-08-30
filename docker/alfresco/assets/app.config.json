@@ -1,0 +1,17 @@
+{
+  "authType": "OAUTH",
+  "providers": "ECM",
+  "ecmHost": "http://localhost",
+  "locale": "es",
+  "oauth2": {
+    "host": "http://localhost/auth/realms/arquitecturaTI",
+    "clientId": "aca",
+    "scope": "openid profile email",
+    "implicitFlow": false,
+    "silentLogin": false,
+    "redirectUri": "http://localhost/content/",
+    "postLogoutRedirectUri": "http://localhost/content/",
+    "redirectSilentIframeUri": "http://localhost/content/assets/silent-refresh.html",
+    "storage": "sessionStorage"
+  }
+}
