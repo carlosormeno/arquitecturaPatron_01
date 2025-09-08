@@ -1,17 +1,104 @@
 {
-  "authType": "OAUTH",
+  "$schema": "./app.config.schema.json",
   "providers": "ECM",
+  "authType": "BASIC",
   "ecmHost": "http://localhost",
-  "locale": "es",
-  "oauth2": {
-    "host": "http://localhost/auth/realms/arquitecturaTI",
-    "clientId": "aca",
-    "scope": "openid profile email",
-    "implicitFlow": false,
-    "silentLogin": false,
-    "redirectUri": "http://localhost/content/",
-    "postLogoutRedirectUri": "http://localhost/content/",
-    "redirectSilentIframeUri": "http://localhost/content/assets/silent-refresh.html",
-    "storage": "sessionStorage"
+  "contextRoot": "alfresco",
+  "withCredentials": true,
+
+  "application": {
+    "name": "Alfresco Content App",
+    "version": "6.0.0"
+  },
+
+  "headerColor": "#2196F3",
+  "logoImageUrl": "assets/images/alfresco-logo-white.svg",
+
+  "pagination": {
+    "size": 25,
+    "supportedPageSizes": [25, 50, 100]
+  },
+
+  "files": {
+    "excluded": [".DS_Store", "desktop.ini", "Thumbs.db"],
+    "match-options": {
+      "nocase": true
+    }
+  },
+
+  "languages": [
+    {
+      "key": "es",
+      "label": "Español"
+    },
+    {
+      "key": "en",
+      "label": "English"
+    }
+  ],
+
+  "content-metadata": {
+    "presets": {
+      "custom": [
+        {
+          "title": "APP.CONTENT_METADATA.EXIF_GROUP_TITLE",
+          "items": [
+            {
+              "aspect": "exif:exif",
+              "properties": [
+                "exif:pixelXDimension",
+                "exif:pixelYDimension",
+                "exif:dateTimeOriginal",
+                "exif:exposureTime",
+                "exif:fNumber",
+                "exif:flash",
+                "exif:focalLength",
+                "exif:isoSpeedRatings",
+                "exif:orientation",
+                "exif:xResolution",
+                "exif:yResolution",
+                "exif:resolutionUnit"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+
+  "search": {
+    "include": ["path", "allowableOperations"],
+    "sorting": {
+      "options": [
+        { "key": "name", "label": "Name", "type": "FIELD" },
+        { "key": "title", "label": "Title", "type": "FIELD" },
+        { "key": "modified", "label": "Modified date", "type": "FIELD" },
+        { "key": "modifier", "label": "Modifier", "type": "FIELD" },
+        { "key": "created", "label": "Created date", "type": "FIELD" },
+        { "key": "content.size", "label": "Size", "type": "FIELD" },
+        { "key": "content.mimetype", "label": "Type", "type": "FIELD" }
+      ],
+      "defaults": [
+        { "key": "score", "type": "SCORE", "ascending": false }
+      ]
+    },
+    "facetFields": {
+      "expanded": true,
+      "fields": [
+        { "field": "content.mimetype", "mincount": 1, "label": "Type" },
+        { "field": "content.size", "mincount": 1, "label": "Size" },
+        { "field": "creator", "mincount": 1, "label": "Creator" },
+        { "field": "modifier", "mincount": 1, "label": "Modifier" }
+      ]
+    },
+    "facetQueries": {
+      "label": "Date Modified",
+      "queries": [
+        { "query": "modified:[NOW/DAY-1DAY TO NOW/DAY+1DAY]", "label": "Today" },
+        { "query": "modified:[NOW/DAY-7DAYS TO NOW/DAY+1DAY]", "label": "This week" },
+        { "query": "modified:[NOW/DAY-1MONTH TO NOW/DAY+1DAY]", "label": "This month" },
+        { "query": "modified:[NOW/DAY-1YEAR TO NOW/DAY+1DAY]", "label": "This year" }
+      ]
+    }
   }
 }

@@ -169,6 +169,8 @@ services:
       bash -lc "mkdir -p /usr/local/tomcat/alf_data/keystore &&
                 chmod 777 /usr/local/tomcat/alf_data/keystore &&
                 exec catalina.sh run"
+    #extra_hosts:
+    #- "keycloak:127.20.2.7"
     environment:
       JAVA_OPTS: >-
         -Ddb.driver=org.postgresql.Driver
@@ -182,33 +184,35 @@ services:
         -Dsolr.sharedSecret=secret
         -Dsolr.base.url=/solr
         -Dindex.subsystem.name=solr6
-        -Dshare.host=127.0.0.1
-        -Dshare.port=8080
+        -Dshare.host=localhost
+        -Dshare.port=80
+        -Dshare.context=share
         -Dalfresco.host=localhost
-        -Dalfresco.port=8072
-        -Daos.baseUrlOverwrite=http://localhost:8072/alfresco/aos
+        -Dalfresco.port=80
+        -Dalfresco.context=alfresco
+        -Dalfresco.protocol=http
+        -Daos.baseUrlOverwrite=http://localhost/alfresco/aos
         -Dmessaging.broker.url='failover:(nio://alfresco-activemq:61616)?timeout=3000&jms.useCompression=true'
         -Ddeployment.method=DOCKER_COMPOSE
         -DlocalTransform.core-aio.url=http://alfresco-transform-core-aio:8090/
         -Dcsrf.filter.enabled=false
+        -Dcors.enabled=true
+        -Dcors.allowed.origins=http://localhost
+        -Dcors.allowed.methods=GET,POST,HEAD,OPTIONS,PUT,DELETE
+        -Dcors.allowed.headers=Authorization,Content-Type,Cache-Control,X-Requested-With,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers,X-CSRF-Token
+        -Dcors.support.credentials=true
         -XX:MinRAMPercentage=50
         -XX:MaxRAMPercentage=80
         -Ddir.root=/usr/local/tomcat/alf_data
         -Dencryption.keystore.type=pkcs12
         -Dencryption.keystore.location=/usr/local/tomcat/alf_data/keystore/keystore
         -Dmetadata-keystore.aliases=metadata
-        -Dmetadata-keystore.password=${ALFRESCO_KEYSTORE_PASS}
-        -Dmetadata-keystore.metadata.password=${ALFRESCO_METADATA_PASS}
+        -Dmetadata-keystore.password=${ALFRESCO_KEYSTORE_PASS:-alfresco123}
+        -Dmetadata-keystore.metadata.password=${ALFRESCO_METADATA_PASS:-alfresco123}
         -Dmetadata-keystore.metadata.algorithm=DESede
-        -Dauthentication.chain=identity-service:identity-service,alfrescoNtlm:alfrescoNtlm
-        -Didentity-service.authentication.enabled=true
-        -Didentity-service.auth-server-url=http://keycloak:8080/auth
-        -Didentity-service.realm=arquitecturaTI
-        -Didentity-service.resource=alfresco
-        -Didentity-service.public-client=true
-        -Didentity-service.client-id.validation.disabled=true
-        -Didentity-service.user-name-claim=preferred_username
-        -Didentity-service.authentication.validation.failure.silent=false
+        -Dauthentication.chain=alfrescoNtlm:alfrescoNtlm
+        -Duser.name.caseSensitive=false
+        -Duser.username.caseSensitive=false
     volumes:
       - alfresco-data:/usr/local/tomcat/alf_data
       - ./logs/alfresco/repo:/usr/local/tomcat/logs
@@ -252,9 +256,13 @@ services:
         -XX:MinRAMPercentage=50
         -XX:MaxRAMPercentage=80
         -Dalfresco.host=localhost
-        -Dalfresco.port=8072
+        -Dalfresco.port=80
         -Dalfresco.context=alfresco
         -Dalfresco.protocol=http
+        -Dshare.host=localhost
+        -Dshare.port=80
+        -Dshare.context=share
+        -Dshare.protocol=http
     volumes:
       - ./logs/alfresco/share:/usr/local/tomcat/logs
     networks:
@@ -282,27 +290,13 @@ services:
     ports:
       - "4201:8080"
     environment:
-      #BASE_PATH: /content/
-      #APP_BASE_HREF: /content/
-      #APP_CONFIG_PROVIDER: ECM
-      APP_CONFIG_AUTH_TYPE: OAUTH
-      APP_CONFIG_WITH_CREDENTIALS: "false"
-      #APP_CONFIG_ECM_HOST: /alfresco
-      #APP_CONFIG_ECM_HOST: http://localhost
-
-      #APP_CONFIG_OAUTH2_HOST: http://localhost
-      #APP_CONFIG_OAUTH2_HOST: http://localhost/auth/realms/arquitecturaTI
-      #APP_CONFIG_IDENTITY_HOST: http://localhost/auth/realms/arquitecturaTI
-      #APP_CONFIG_OAUTH2_AUTH_CONTEXT: http://localhost/auth/realms/arquitecturaTI
-
-      #APP_CONFIG_OAUTH2_CLIENTID: aca
-      #APP_CONFIG_OAUTH2_SCOPE: openid profile email
-      #APP_CONFIG_OAUTH2_IMPLICIT_FLOW: "false"
-      #APP_CONFIG_OAUTH2_SILENT_LOGIN: "false"
-      #APP_CONFIG_OAUTH2_REDIRECT_SILENT_IFRAME_URI: /content/assets/silent-refresh.html
-      #APP_CONFIG_OAUTH2_REDIRECT_LOGIN: http://localhost/content/
-      #APP_CONFIG_OAUTH2_REDIRECT_LOGOUT: http://localhost/content/
-      #APP_CONFIG_OAUTH2_STORAGE: sessionStorage
+      APP_CONFIG_PROVIDER: ECM
+      APP_CONFIG_AUTH_TYPE: BASIC
+      APP_CONFIG_WITH_CREDENTIALS: "true"
+      APP_CONFIG_ECM_HOST: http://localhost
+      APP_CONFIG_ECM_CONTEXT_ROOT: alfresco
+      APP_CONFIG_LANGUAGE: es
+      APP_CONFIG_LOG_LEVEL: ERROR
     volumes:
       - ./logs/alfresco/content-app:/var/log/nginx
       - ./alfresco/assets/app.config.json:/usr/share/nginx/html/app.config.json:ro

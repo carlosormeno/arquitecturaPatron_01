@@ -100,6 +100,7 @@ services:
 
       # Identity & Security
       - keycloak_data:/identity/keycloak
+      - keycloak_data1:/identity/keycloak
       - vault_data:/security/vault
 
       # Content Management
@@ -444,6 +445,12 @@ volumes:
   # ========== IDENTITY & SECURITY ==========
   keycloak_data:
     name: keycloak_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=Keycloak identity provider data"
+
+  keycloak_data1:
+    name: keycloak_data1
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Keycloak identity provider data"
