@@ -1,0 +1,32 @@
+<!-- dms-alfresco-client/pom.xml -->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>pe.gob.onp.arquitectura</groupId>
+        <artifactId>dms-backend</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>dms-alfresco-client</artifactId>
+    <name>dms-alfresco-client</name>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <!-- WebClient reactivo -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- Para @ConfigurationProperties (metadata) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

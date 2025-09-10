@@ -1,0 +1,123 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- CAMBIO CLAVE: hereda del POM padre multi-módulo -->
+    <parent>
+        <groupId>pe.gob.onp.arquitectura</groupId>
+        <artifactId>dms-backend</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <!-- Al heredar del padre, omitimos groupId y version aquí -->
+    <artifactId>dms-app</artifactId>
+    <name>dms-app</name>
+    <packaging>jar</packaging>
+
+    <properties>
+        <springdoc.version>2.6.0</springdoc.version>
+    </properties>
+
+    <dependencies>
+        <!-- Tu stack MVC actual -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- (Opcional) Solo si realmente lo usas en código HTTP sin WebClient -->
+        <!--
+        <dependency>
+          <groupId>org.apache.httpcomponents.client5</groupId>
+          <artifactId>httpclient5</artifactId>
+        </dependency>
+        -->
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- CAMBIO CLAVE: dependencia al módulo cliente -->
+        <dependency>
+            <groupId>pe.gob.onp.arquitectura</groupId>
+            <artifactId>dms-alfresco-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+        </dependency>
+        <!-- ✅ Structured Logging -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>8.1</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <!-- Opcional pero RECOMENDADO: usa un classifier fijo para evitar confusiones -->
+                <configuration>
+                    <classifier>exec</classifier>
+                </configuration>
+            </plugin>
+
+            <!-- AGREGAR ESTE PLUGIN -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>

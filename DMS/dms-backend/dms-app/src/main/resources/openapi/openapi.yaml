@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info: { title: DMS API, version: 1.0.0 }
+#servers: [ { url: http://dms:8084 } ]
+servers:
+  - url: http://dms:8084
+    description: Acceso interno en red Docker
+  - url: http://localhost/api/documents
+    description: Acceso externo vía Kong/Nginx
+security: [ { bearerAuth: [ ] } ]
+paths:
+  /ping:
+    get: { summary: Ping, responses: { '200': { description: OK } } }
+  /expedientes:
+    post: { summary: Crear expediente, responses: { '201': { description: Creado } } }
+  /expedientes/{id}:
+    get: { summary: Ver expediente, parameters: [ { name: id, in: path, required: true, schema: { type: string } } ], responses: { '200': { description: OK } } }
+  /documentos/upload:
+    post: { summary: Subir documento, responses: { '200': { description: OK } } }
+  /documentos/{id}:
+    get: { summary: Obtener documento, parameters: [ { name: id, in: path, required: true, schema: { type: string } } ], responses: { '200': { description: OK } } }
+  /documentos/{id}/workflow:
+    post: { summary: Cambiar estado, responses: { '200': { description: OK } } }
+  /admin/templates:
+    get: { summary: Listar plantillas, responses: { '200': { description: OK } } }
+  /admin/templates/{id}:
+    get: { summary: Obtener plantilla, parameters: [ { name: id, in: path, required: true, schema: { type: string } } ], responses: { '200': { description: OK } } }
+  /admin/templates/{id}/duplicate:
+    post: { summary: Duplicar plantilla, responses: { '201': { description: OK } } }
+  /admin/templates/resolve:
+    get: { summary: Resolver plantilla, responses: { '200': { description: OK } } }
+  /admin/policies/retention:
+    get: { summary: Ver retención, responses: { '200': { description: OK } } }
+    put: { summary: Actualizar retención, responses: { '200': { description: OK } } }
+  /admin/audit/integrity:
+    get: { summary: Integridad auditoría, responses: { '200': { description: OK } } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }

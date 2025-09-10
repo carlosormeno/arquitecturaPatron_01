@@ -1,0 +1,11 @@
+
+package pe.gob.onp.arquitectura.dms.alfresco.dto;
+
+public record SearchRequest(
+        Query query,
+        Integer maxItems,
+        Integer skipCount
+) {
+    public record Query(String query) {
+    }
+}
