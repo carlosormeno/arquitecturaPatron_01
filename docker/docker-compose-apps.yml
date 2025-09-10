@@ -112,6 +112,57 @@ services:
       timeout: 5s
       retries: 3
 
+
+  dms-microservicio:
+    image: dms:0.1
+    container_name: dms-microservicio
+    user: "1001:1001"
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
+      - LOGGING_LEVEL_ROOT=${LOG_LEVEL_ROOT}
+      - LOGGING_LEVEL_PE_GOB_ONP=${LOG_LEVEL_APP}
+
+      # Variables críticas de Keycloak que faltan
+      - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL}
+      - KEYCLOAK_EXTERNAL_URL=${KEYCLOAK_EXTERNAL_URL}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM}
+
+      # Configuración de Alfresco
+      - ALFRESCO_BASE_URL=http://alfresco-repository:8080/alfresco
+      - ALFRESCO_USER=${ALFRESCO_ADMIN_USER}
+      - ALFRESCO_PASSWORD=${ALFRESCO_ADMIN_PASSWORD}
+
+      # JVM Options
+      - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC
+    volumes:
+      - ./logs/dms-service:/app/logs/dms-service
+    networks:
+      - apps
+      - backend
+      - messaging
+      - observability
+      - content
+    #depends_on:
+    #  keycloak:
+    #    condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT_LARGE}'
+          memory: ${MEMORY_LIMIT_LARGE}
+        reservations:
+          cpus: '${CPU_LIMIT_MEDIUM}'
+          memory: ${MEMORY_LIMIT_MEDIUM}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
 # ============================================
 # UTILITIES
 # ============================================
@@ -158,4 +209,8 @@ networks:
   observability:
     driver: bridge
     name: observability_network
+    external: true
+  content:
+    driver: bridge
+    name: content_network
     external: true

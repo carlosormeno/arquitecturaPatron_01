@@ -80,6 +80,8 @@ services:
       - frontend
       - backend
       - observability
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:

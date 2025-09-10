@@ -73,13 +73,14 @@ ENV JVM_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:Ma
 ENV SPRING_PROFILES_ACTIVE=dev
 ENV DEBUG=true
 ENV LOGGING_LEVEL_ROOT=INFO
+ENV SERVER_PORT=8081
 
 # Exponer el puerto del microservicio
 EXPOSE 8081
 
 # Health check para Docker (Spring Boot Actuator)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${SERVER_PORT}/actuator/health || exit 1
 
 # Start with JVM optimizations
 ENTRYPOINT ["sh", "-c", "java $JVM_OPTS $JAVA_TOOL_OPTIONS -jar app.jar"]
