@@ -191,7 +191,7 @@ networks:
     name: frontend_network
     ipam:
       config:
-        - subnet: 172.20.1.0/24
+        - subnet: 10.200.1.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Frontend applications and web interfaces"
@@ -201,7 +201,7 @@ networks:
     name: backend_network
     ipam:
       config:
-        - subnet: 172.20.2.0/24
+        - subnet: 10.200.2.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Backend services and APIs"
@@ -211,7 +211,7 @@ networks:
     name: messaging_network
     ipam:
       config:
-        - subnet: 172.20.3.0/24
+        - subnet: 10.200.3.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Message brokers and event streaming"
@@ -221,7 +221,7 @@ networks:
     name: gateway_network
     ipam:
       config:
-        - subnet: 172.20.4.0/24
+        - subnet: 10.200.4.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=API gateways and load balancers"
@@ -231,7 +231,7 @@ networks:
     name: observability_network
     ipam:
       config:
-        - subnet: 172.20.5.0/24
+        - subnet: 10.200.5.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Monitoring, logging, and metrics"
@@ -241,7 +241,7 @@ networks:
     name: management_network
     ipam:
       config:
-        - subnet: 172.20.6.0/24
+        - subnet: 10.200.6.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Container and infrastructure management"
@@ -252,7 +252,7 @@ networks:
     name: security_network
     ipam:
       config:
-        - subnet: 172.20.10.0/24
+        - subnet: 10.200.10.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Security scanning and compliance tools"
@@ -262,7 +262,7 @@ networks:
     name: identity_network
     ipam:
       config:
-        - subnet: 172.20.11.0/24
+        - subnet: 10.200.11.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Authentication and authorization services"
@@ -272,7 +272,7 @@ networks:
     name: content_network
     ipam:
       config:
-        - subnet: 172.20.12.0/24
+        - subnet: 10.200.12.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Content management and document services"
@@ -282,7 +282,7 @@ networks:
     name: data_platform_network
     ipam:
       config:
-        - subnet: 172.20.13.0/24
+        - subnet: 10.200.13.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Data processing and ETL platforms"
@@ -292,7 +292,7 @@ networks:
     name: data_governance_network
     ipam:
       config:
-        - subnet: 172.20.14.0/24
+        - subnet: 10.200.14.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Data cataloging and governance"
@@ -302,7 +302,7 @@ networks:
     name: workflow_network
     ipam:
       config:
-        - subnet: 172.20.15.0/24
+        - subnet: 10.200.15.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Workflow orchestration and scheduling"
@@ -312,7 +312,7 @@ networks:
     name: business_rules_network
     ipam:
       config:
-        - subnet: 172.20.16.0/24
+        - subnet: 10.200.16.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Business rules and decision engines"
@@ -322,7 +322,7 @@ networks:
     name: cicd_network
     ipam:
       config:
-        - subnet: 172.20.17.0/24
+        - subnet: 10.200.17.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=CI/CD pipelines and automation"
@@ -332,7 +332,7 @@ networks:
     name: registry_network
     ipam:
       config:
-        - subnet: 172.20.18.0/24
+        - subnet: 10.200.18.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Container and artifact registries"
@@ -342,7 +342,7 @@ networks:
     name: apps_network
     ipam:
       config:
-        - subnet: 172.20.19.0/24
+        - subnet: 10.200.19.0/24
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=Application services and microservices"

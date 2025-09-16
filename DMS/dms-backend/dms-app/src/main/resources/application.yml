@@ -28,13 +28,15 @@ management:
 app:
   alfresco:
     base-url: ${ALFRESCO_BASE_URL:http://alfresco-repository:8080/alfresco}
-    root-path: "/Company Home/Expedientes"
+    #root-path: "/Company Home"
     username: ${ALFRESCO_USER:admin}
     password: ${ALFRESCO_PASSWORD:admin}
 logging:
   level:
     root: INFO
-    pe.gob.onp.arquitectura.dms: DEBUG
+    pe.gob.onp.arquitectura.dms: INFO
+    pe.gob.onp.arquitectura.dms.api: INFO    # Para ver logs de controllers
+    pe.gob.onp.arquitectura.dms.service: DEBUG  # Para ver logs detallados de services
     org.springframework.web: DEBUG
     org.springframework.web.servlet.DispatcherServlet: DEBUG
   pattern:
