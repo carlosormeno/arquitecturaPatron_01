@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import pe.gob.onp.arquitectura.dms.alfresco.AlfrescoException;
+import pe.gob.onp.arquitectura.dms.alfresco.dto.NodeChildrenList;
 import pe.gob.onp.arquitectura.dms.alfresco.dto.NodeEntry;
 import pe.gob.onp.arquitectura.dms.alfresco.dto.SearchResponse;
 import pe.gob.onp.arquitectura.dms.api.dto.ExpedienteDtos.*;
@@ -22,6 +23,9 @@ import java.util.Set;
 
 @Service
 public class ExpedientesServiceImpl implements ExpedientesService {
+
+    // Agregar esta constante al inicio de la clase
+    private static final String REPOSITORIO_ID = "02dbd884-06fe-41a2-9bd8-8406fef1a234";
 
     private final AlfrescoClient alfrescoClient;
     private final String rootPath;
@@ -282,7 +286,7 @@ public class ExpedientesServiceImpl implements ExpedientesService {
         return String.format("%.1f MB", size / (1024.0 * 1024.0));
     }
 
-    private NodeEntry buscarExpedientePorNumero(String numeroExpediente) {
+    private NodeEntry buscarExpedientePorNumeroConSolr(String numeroExpediente) {
         try {
             log.info("=== INICIANDO BÚSQUEDA POR NÚMERO ===");
             log.info("Número de expediente buscado: '{}'", numeroExpediente);
@@ -349,6 +353,44 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.error("Mensaje de error: {}", e.getMessage());
             log.error("=== FIN ERROR ===", e);
             throw new RuntimeException("No se pudo encontrar expediente: " + numeroExpediente, e);
+        }
+    }
+
+    private NodeEntry buscarExpedientePorNumero(String numeroExpediente) {
+        try {
+            log.info("=== INICIANDO BÚSQUEDA POR NÚMERO (NODE API) ===");
+            log.info("Número de expediente buscado: '{}'", numeroExpediente);
+
+            // Usar Node Children API en lugar de Search API
+            String whereClause = String.format("(name='%s')", numeroExpediente.replace("'", "\\'"));
+            log.info("Where clause construida: '{}'", whereClause);
+
+            NodeChildrenList children = alfrescoClient.getNodeChildren(REPOSITORIO_ID, whereClause);
+
+            if (children == null || children.getList() == null ||
+                    children.getList().getEntries() == null || children.getList().getEntries().isEmpty()) {
+                log.warn("No se encontraron resultados para: {}", numeroExpediente);
+                throw new AlfrescoException("Expediente no encontrado: " + numeroExpediente);
+            }
+
+            // Obtener el primer resultado
+            String nodeId = children.getList().getEntries().get(0).getEntry().id();
+            log.info("NodeId encontrado: '{}'", nodeId);
+
+            // Obtener el nodo completo
+            NodeEntry node = alfrescoClient.getNode(nodeId);
+            log.info("=== BÚSQUEDA COMPLETADA EXITOSAMENTE ===");
+            return node;
+
+        } catch (Exception e) {
+            log.error("=== ERROR EN BÚSQUEDA POR NODE API ===");
+            log.error("Número buscado: {}", numeroExpediente);
+            log.error("Error: {}", e.getMessage());
+            log.error("=== FIN ERROR ===");
+
+            // Fallback opcional a Solr si quieres mantenerlo
+            log.warn("Intentando fallback con Solr...");
+            return buscarExpedientePorNumeroConSolr(numeroExpediente);
         }
     }
 

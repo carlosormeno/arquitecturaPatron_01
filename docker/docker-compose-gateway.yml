@@ -6,7 +6,7 @@ services:
 # FASE 2: EDGE LAYER - NGINX PROXY
 # ============================================
   nginx-edge:
-    image: nginx:1.29.0-alpine
+    image: docker.io/nginx:1.29.0-alpine
     container_name: nginx-edge
     restart: unless-stopped
     ports:
@@ -21,6 +21,7 @@ services:
       - frontend
       - gateway
       - backend
+      - content
     depends_on:
       kong:
         condition: service_healthy
@@ -53,7 +54,7 @@ services:
 # ============================================
 
   kong:
-    image: kong:3.6
+    image: docker.io/kong:3.6
     container_name: kong
     restart: unless-stopped
     environment:
@@ -80,6 +81,7 @@ services:
       - frontend
       - backend
       - observability
+      - content
     extra_hosts:
       - "host.docker.internal:host-gateway"
     deploy:
@@ -99,6 +101,10 @@ services:
 # ============================================
 
 networks:
+  content:
+    driver: bridge
+    name: content_network
+    external: true
   frontend:
     driver: bridge
     name: frontend_network

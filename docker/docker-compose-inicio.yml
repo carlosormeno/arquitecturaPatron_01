@@ -14,7 +14,7 @@ services:
 # ADMINISTRADOR DE CONTENEDORES
 # ============================================
   portainer:
-    image: portainer/portainer-ce:2.31.3-alpine
+    image: docker.io/portainer/portainer-ce:2.31.3-alpine
     container_name: portainer
     restart: unless-stopped
     ports:
@@ -100,7 +100,7 @@ services:
 
       # Identity & Security
       - keycloak_data:/identity/keycloak
-      - keycloak_data1:/identity/keycloak
+      - keycloak_data1:/identity/keycloak1
       - vault_data:/security/vault
 
       # Content Management

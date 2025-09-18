@@ -610,5 +610,32 @@ public class AlfrescoClient {
         }
     }
 
+    public NodeChildrenList getNodeChildren(String parentId, String whereClause) {
+        log.info("=== OBTENIENDO HIJOS DE NODO ===");
+        log.info("Parent ID: '{}', Where: '{}'", parentId, whereClause);
+
+        String uri = API_V1 + "/nodes/{id}/children";
+        if (whereClause != null && !whereClause.trim().isEmpty()) {
+            uri += "?where=" + whereClause;
+        }
+
+        try {
+            NodeChildrenList result = exchange(
+                    client.get().uri(uri, parentId),
+                    NodeChildrenList.class
+            ).block();
+
+            log.info("Resultado: {} hijos encontrados",
+                    result != null && result.getList() != null && result.getList().getEntries() != null
+                            ? result.getList().getEntries().size() : 0);
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("Error obteniendo hijos de {}: {}", parentId, e.getMessage());
+            throw new AlfrescoException("No se pudieron obtener hijos de: " + parentId, e);
+        }
+    }
+
 
 }
