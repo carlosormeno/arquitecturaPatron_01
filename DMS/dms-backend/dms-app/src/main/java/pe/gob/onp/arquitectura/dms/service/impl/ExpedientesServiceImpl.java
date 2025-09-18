@@ -39,6 +39,26 @@ public class ExpedientesServiceImpl implements ExpedientesService {
     private static final String PROP_FECHA_CREACION = DMS_NAMESPACE + "fechaCreacion";
     private static final String PROP_CARPETA_BASE = DMS_NAMESPACE + "carpetaBase";
 
+    private static final String PROP_AREA = DMS_NAMESPACE + "area";
+    private static final String PROP_FECHA_INICIO = DMS_NAMESPACE + "fechaInicio";
+    private static final String PROP_ASUNTO = DMS_NAMESPACE + "asunto";
+    private static final String PROP_CATEGORIA = DMS_NAMESPACE + "categoria";
+    private static final String PROP_SOLICITANTE = DMS_NAMESPACE + "solicitante";
+    private static final String PROP_OBSERVACIONES = DMS_NAMESPACE + "observaciones";
+    private static final String PROP_CONFIDENCIALIDAD = DMS_NAMESPACE + "confidencialidad";
+    private static final String PROP_PRIORIDAD = DMS_NAMESPACE + "prioridad";
+
+    // Propiedades de documento
+    private static final String PROP_FECHA_DOCUMENTO = DMS_NAMESPACE + "fechaDocumento";
+    private static final String PROP_TIPO_DOCUMENTO = DMS_NAMESPACE + "tipoDocumento";
+    private static final String PROP_NUMERO_DOCUMENTO = DMS_NAMESPACE + "numeroDocumento";
+    private static final String PROP_DESTINATARIO = DMS_NAMESPACE + "destinatario";
+    private static final String PROP_EMISOR = DMS_NAMESPACE + "emisor";
+    private static final String PROP_SUBCARPETA = DMS_NAMESPACE + "subcarpeta";
+    private static final String PROP_EXPEDIENTE_ID = DMS_NAMESPACE + "expedienteId";
+    private static final String PROP_FECHA_SUBIDA = DMS_NAMESPACE + "fechaSubida";
+    private static final String PROP_USUARIO_SUBIDA = DMS_NAMESPACE + "usuarioSubida";
+
     public ExpedientesServiceImpl(
             AlfrescoClient alfrescoClient,
             //@Value("${app.alfresco.root-path:/Repository}") String rootPath
