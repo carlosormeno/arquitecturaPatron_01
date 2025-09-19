@@ -114,7 +114,7 @@ services:
 
 
   dms-microservicio:
-    image: dms:0.1.9
+    image: dms:0.1.11
     container_name: dms-microservicio
     user: "1001:1001"
     restart: unless-stopped
