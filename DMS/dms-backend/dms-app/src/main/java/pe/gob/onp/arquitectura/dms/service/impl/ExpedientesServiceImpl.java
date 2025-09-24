@@ -1267,7 +1267,9 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             }
 
             return children.getList().getEntries().stream()
-                    .filter(entry -> "cm:content".equals(entry.getEntry().nodeType()))
+                    .filter(entry -> "cm:content".equals(entry.getEntry().nodeType()) ||
+                            "cm:documento".equals(entry.getEntry().nodeType())
+                    )
                     .map(entry -> construirDocumentoInfo(entry.getEntry(), subcarpeta))
                     .collect(Collectors.toList());
 
