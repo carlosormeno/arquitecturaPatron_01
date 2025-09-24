@@ -202,15 +202,8 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             Map<String, Object> properties = new HashMap<>();
             properties.put("cm:title", req.titulo());
             properties.put("cm:description", req.descripcion() != null ? req.descripcion() : "");
-            //properties.put("dms:numeroExpediente", expedienteCodigo);
-            //properties.put("dms:estado", "VIGENTE");
-            //properties.put("dms:fechaCreacion", java.time.Instant.now().toString());
-            //properties.put("dms:carpetaBase", req.carpetaBase()); // Nuevo: guardar carpeta base
             properties.put(PROP_NUMERO_EXPEDIENTE, expedienteCodigo);
             properties.put(PROP_ESTADO, "VIGENTE");
-            //properties.put(PROP_FECHA_CREACION, java.time.Instant.now().toString());
-            //properties.put(PROP_CARPETA_BASE, req.carpetaBase());
-            //properties.put("cm:created", java.time.Instant.now().toString());
 
             // Agregar metadatos del request
             /*if (req.metadatos() != null) {
@@ -421,7 +414,8 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.info("Número de expediente buscado: '{}'", numeroExpediente);
 
             // Intentar primero con dms:numeroExpediente
-            String query = "TYPE:\"cm:folder\" AND @dms\\:numeroExpediente:\"" + numeroExpediente + "\"";
+            //String query = "TYPE:\"cm:folder\" AND @dms\\:numeroExpediente:\"" + numeroExpediente + "\"";
+            String query = "TYPE:\"dms:expediente\" AND @dms\\:numeroExpediente:\"" + numeroExpediente + "\"";
             log.info("Query 1 (dms:numeroExpediente): '{}'", query);
 
             SearchResponse results = alfrescoClient.searchLucene(query, 1, 0);
@@ -431,7 +425,8 @@ public class ExpedientesServiceImpl implements ExpedientesService {
                     results.list().entries() == null || results.list().entries().isEmpty()) {
 
                 log.info("No encontrado con dms:numeroExpediente, intentando con cm:name...");
-                query = "TYPE:\"cm:folder\" AND cm:name:\"" + numeroExpediente + "\"";
+                //query = "TYPE:\"cm:folder\" AND cm:name:\"" + numeroExpediente + "\"";
+                query = "TYPE:\"dms:expediente\" AND cm:name:\"" + numeroExpediente + "\"";
                 log.info("Query 2 (cm:name): '{}'", query);
 
                 results = alfrescoClient.searchLucene(query, 1, 0);
@@ -475,7 +470,31 @@ public class ExpedientesServiceImpl implements ExpedientesService {
 
     private NodeEntry buscarExpedientePorNumero(String numeroExpediente) {
         try {
-            log.info("=== BÚSQUEDA POR NÚMERO DE EXPEDIENTE ===");
+            log.info("=== BÚSQUEDA DE EXPEDIENTE POR NÚMERO ===");
+            log.info("Número buscado: '{}'", numeroExpediente);
+
+            // MÉTODO PRINCIPAL: Usar Solr (más eficiente)
+            log.info("Intentando búsqueda con Solr...");
+            return buscarExpedientePorNumeroConSolr(numeroExpediente);
+
+        } catch (Exception e) {
+            log.warn("Búsqueda con Solr falló: {}", e.getMessage());
+            log.info("Iniciando búsqueda manual como fallback...");
+
+            try {
+                // FALLBACK: búsqueda manual solo si Solr falla
+                return buscarExpedienteManualmente(numeroExpediente);
+
+            } catch (Exception fallbackError) {
+                log.error("También falló la búsqueda manual: {}", fallbackError.getMessage());
+                throw new RuntimeException("No se pudo encontrar expediente con ningún método: " + numeroExpediente, fallbackError);
+            }
+        }
+    }
+
+    private NodeEntry buscarExpedienteManualmente(String numeroExpediente) {
+        try {
+            log.info("=== BÚSQUEDA MANUAL POR CARPETAS ===");
             log.info("Número buscado: '{}'", numeroExpediente);
 
             // Buscar en carpetas base conocidas
@@ -486,17 +505,15 @@ public class ExpedientesServiceImpl implements ExpedientesService {
                 if (!carpetasRelevantes.contains(carpetaBase)) continue;
 
                 try {
-                    // Usar el método mejorado para buscar la carpeta base
                     String carpetaBaseId = findChildIdByName("-root-", carpetaBase);
                     if (carpetaBaseId == null) continue;
 
                     log.debug("Buscando en carpeta '{}' (ID: {})", carpetaBase, carpetaBaseId);
 
-                    // Buscar el expediente (ya es case-insensitive por el cambio en findChildIdByName)
                     String expedienteId = findChildIdByName(carpetaBaseId, numeroExpediente);
 
                     if (expedienteId != null) {
-                        log.info("✓ Expediente encontrado en '{}': {}", carpetaBase, expedienteId);
+                        log.info("✓ Expediente encontrado manualmente en '{}': {}", carpetaBase, expedienteId);
                         return alfrescoClient.getNode(expedienteId);
                     }
 
@@ -505,16 +522,16 @@ public class ExpedientesServiceImpl implements ExpedientesService {
                 }
             }
 
-            throw new AlfrescoException("Expediente no encontrado: " + numeroExpediente);
+            throw new AlfrescoException("Expediente no encontrado en búsqueda manual: " + numeroExpediente);
 
         } catch (Exception e) {
-            log.error("Error en búsqueda: {}", e.getMessage());
-            throw new RuntimeException("No se pudo encontrar expediente: " + numeroExpediente, e);
+            log.error("Error en búsqueda manual: {}", e.getMessage());
+            throw new RuntimeException("No se pudo encontrar expediente manualmente: " + numeroExpediente, e);
         }
     }
 
     // Agregar este método auxiliar
-    private String findChildIdByName(String parentId, String name) {
+    /*private String findChildIdByName(String parentId, String name) {
         try {
             NodeChildrenList children = alfrescoClient.getNodeChildren(parentId, null);
 
@@ -531,6 +548,120 @@ public class ExpedientesServiceImpl implements ExpedientesService {
 
         } catch (Exception e) {
             log.warn("Error buscando hijo {}: {}", name, e.getMessage());
+            return null;
+        }
+    }*/
+
+    private String findChildIdByName(String parentId, String name) {
+        log.debug(">>> FIND CHILD: '{}' en parent '{}'", name, parentId);
+
+        if (name == null || name.isBlank()) {
+            log.warn("Nombre vacío en findChildIdByName");
+            return null;
+        }
+
+        try {
+            // INTENTO 1: Método optimizado con WHERE (puede fallar en algunas versiones de Alfresco)
+            log.debug("Intentando búsqueda optimizada con WHERE...");
+            String whereClause = String.format("(name='%s')", name.replace("'", "\\'"));
+            log.debug("Where clause construido: {}", whereClause);
+
+            NodeChildrenList children = alfrescoClient.getNodeChildren(parentId, whereClause);
+
+            if (children != null && children.getList() != null &&
+                    children.getList().getEntries() != null && !children.getList().getEntries().isEmpty()) {
+
+                String nodeId = children.getList().getEntries().get(0).getEntry().id();
+                log.debug("<<< FIND CHILD RESULT (OPTIMIZADO): ENCONTRADO con ID '{}'", nodeId);
+                return nodeId;
+            }
+
+            log.debug("WHERE no devolvió resultados, probando método manual...");
+            throw new Exception("WHERE sin resultados");
+
+        } catch (Exception e) {
+            // FALLBACK: Método que ya funcionaba - traer todo y filtrar en memoria
+            log.debug("WHERE falló ({}), usando método manual conocido...", e.getMessage());
+            return findChildIdByNameManual(parentId, name);
+        }
+    }
+
+    private String findChildIdByNameManual(String parentId, String name) {
+        try {
+            int maxItems = 100;  // Procesar de a 100 elementos
+            int skipCount = 0;
+
+            log.debug("Iniciando búsqueda paginada para '{}' en parent '{}'", name, parentId);
+
+            while (true) {
+                // Construir parámetros de paginación
+                String paginationParams = String.format("skipCount=%d&maxItems=%d", skipCount, maxItems);
+                log.debug("Página actual: skip={}, max={}", skipCount, maxItems);
+
+                NodeChildrenList children = alfrescoClient.getNodeChildrenPaginated(parentId, null, skipCount, maxItems);
+
+                if (children == null || children.getList() == null ||
+                        children.getList().getEntries() == null || children.getList().getEntries().isEmpty()) {
+                    log.debug("No hay más elementos para procesar. Búsqueda terminada sin resultados.");
+                    break;
+                }
+
+                // Buscar en esta página
+                String childId = children.getList().getEntries().stream()
+                        .filter(e -> name.equalsIgnoreCase(e.getEntry().name()))
+                        .map(e -> e.getEntry().id())
+                        .findFirst()
+                        .orElse(null);
+
+                if (childId != null) {
+                    log.debug("<<< FIND CHILD RESULT (PAGINADO): ENCONTRADO en página skip={} con ID '{}'", skipCount, childId);
+                    return childId;
+                }
+
+                // Si esta página tiene menos elementos que maxItems, es la última página
+                if (children.getList().getEntries().size() < maxItems) {
+                    log.debug("Última página procesada (solo {} elementos). Elemento no encontrado.",
+                            children.getList().getEntries().size());
+                    break;
+                }
+
+                // Avanzar a la siguiente página
+                skipCount += maxItems;
+
+                // Protección: máximo 50 páginas (5000 elementos)
+                if (skipCount > 5000) {
+                    log.warn("Límite de búsqueda alcanzado (5000 elementos). Deteniendo búsqueda.");
+                    break;
+                }
+            }
+
+            log.debug("<<< FIND CHILD RESULT (PAGINADO): NO ENCONTRADO después de {} elementos procesados", skipCount);
+            return null;
+
+        } catch (Exception e) {
+            log.warn("<<< FIND CHILD ERROR (PAGINADO): {} - RETORNANDO NULL", e.getMessage());
+            return null;
+        }
+    }
+
+    private String findChildIdByNameCaseInsensitive(String parentId, String name) {
+        try {
+            // FALLBACK: Si falla el filtrado optimizado, usar método actual
+            NodeChildrenList children = alfrescoClient.getNodeChildren(parentId, null);
+
+            if (children != null && children.getList() != null &&
+                    children.getList().getEntries() != null) {
+
+                return children.getList().getEntries().stream()
+                        .filter(e -> name.equalsIgnoreCase(e.getEntry().name()))
+                        .map(e -> e.getEntry().id())
+                        .findFirst()
+                        .orElse(null);
+            }
+            return null;
+
+        } catch (Exception e) {
+            log.warn("<<< FIND CHILD ERROR: {} - RETORNANDO NULL", e.getMessage());
             return null;
         }
     }

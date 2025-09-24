@@ -49,7 +49,8 @@ public class AlfrescoClient {
         log.debug("parentId: {}", parentId);
         log.debug("name: {}", name);
         log.debug("properties: {}", properties);
-        NodeBodyCreate body = new NodeBodyCreate(name, "cm:folder", properties);
+        //NodeBodyCreate body = new NodeBodyCreate(name, "cm:folder", properties);
+        NodeBodyCreate body = new NodeBodyCreate(name, "dms:expediente", properties);
         log.debug("body: {}", body);
         try {
             log.info("uri1: {}", API_V1 + "/nodes/{id}/children");
@@ -74,7 +75,8 @@ public class AlfrescoClient {
     public NodeEntry uploadFile(String parentId, String filename, byte[] content, String mimeType, Map<String, Object> props) {
         LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
         form.add("name", filename);
-        form.add("nodeType", "cm:content");
+        //form.add("nodeType", "cm:content");
+        form.add("nodeType", "dms:documento");
 
         if (props != null && !props.isEmpty()) {
             HttpHeaders jsonHeaders = new HttpHeaders();
@@ -726,4 +728,42 @@ public class AlfrescoClient {
     }
 
 
+    // Agregar este método en AlfrescoClient.java
+
+    public NodeChildrenList getNodeChildrenPaginated(String parentId, String whereClause, int skipCount, int maxItems) {
+        log.debug("=== OBTENIENDO HIJOS PAGINADOS ===");
+        log.debug("Parent ID: '{}', Where: '{}', Skip: {}, Max: {}", parentId, whereClause, skipCount, maxItems);
+
+        try {
+            String uri = API_V1 + "/nodes/{id}/children";
+
+            // Construir parámetros de consulta
+            StringBuilder queryParams = new StringBuilder();
+            queryParams.append("skipCount=").append(skipCount);
+            queryParams.append("&maxItems=").append(maxItems);
+
+            if (whereClause != null && !whereClause.trim().isEmpty()) {
+                queryParams.append("&where=").append(whereClause);
+            }
+
+            uri += "?" + queryParams.toString();
+
+            log.debug("URI paginada construida: '{}'", uri);
+
+            NodeChildrenList result = exchange(
+                    client.get().uri(uri, parentId),
+                    NodeChildrenList.class
+            ).block();
+
+            log.debug("Página obtenida: {} elementos",
+                    result != null && result.getList() != null && result.getList().getEntries() != null
+                            ? result.getList().getEntries().size() : 0);
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("Error obteniendo hijos paginados de {}: {}", parentId, e.getMessage());
+            throw new AlfrescoException("Error en paginación: " + e.getMessage(), e);
+        }
+    }
 }
