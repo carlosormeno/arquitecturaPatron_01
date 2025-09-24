@@ -15,11 +15,18 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+
+import pe.gob.onp.arquitectura.dms.api.dto.DocumentoDtos.*;
+
+import java.time.OffsetDateTime;
+import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.ArrayList;
 
 @Service
 public class ExpedientesServiceImpl implements ExpedientesService {
@@ -38,6 +45,53 @@ public class ExpedientesServiceImpl implements ExpedientesService {
     private static final String PROP_ESTADO = DMS_NAMESPACE + "estado";
     private static final String PROP_FECHA_CREACION = DMS_NAMESPACE + "fechaCreacion";
     private static final String PROP_CARPETA_BASE = DMS_NAMESPACE + "carpetaBase";
+
+
+    // Agregar estas constantes después de las existentes:
+    private static final String PROP_TIPO_DOCUMENTO = DMS_NAMESPACE + "tipoDocumento";
+    private static final String PROP_SUBCARPETA = DMS_NAMESPACE + "subcarpeta";
+    private static final String PROP_EXPEDIENTE_ID = DMS_NAMESPACE + "expedienteId";
+    private static final String PROP_FECHA_SUBIDA = DMS_NAMESPACE + "fechaSubida";
+    private static final String PROP_USUARIO_SUBIDA = DMS_NAMESPACE + "usuarioSubida";
+
+    private static final Set<String> SUBCARPETAS_VALIDAS = Set.of(
+            "Documentos", "Anexos", "Comunicaciones", "Resoluciones"
+    );
+
+    private static final Map<String, ConfiguracionSubcarpeta> CONFIGURACION_SUBCARPETAS = Map.of(
+            "Documentos", new ConfiguracionSubcarpeta(
+                    "Documentos",
+                    "Documentos principales del expediente",
+                    new String[]{"SOLICITUD", "RESOLUCION", "OFICIO", "INFORME", "MEMORANDUM"},
+                    new String[]{".pdf", ".doc", ".docx", ".txt"},
+                    50L,
+                    false
+            ),
+            "Anexos", new ConfiguracionSubcarpeta(
+                    "Anexos",
+                    "Documentos de apoyo y anexos",
+                    new String[]{"ANEXO", "ADJUNTO", "SOPORTE", "EVIDENCIA"},
+                    new String[]{".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".png"},
+                    100L,
+                    false
+            ),
+            "Comunicaciones", new ConfiguracionSubcarpeta(
+                    "Comunicaciones",
+                    "Correspondencia y comunicaciones oficiales",
+                    new String[]{"CARTA", "EMAIL", "FAX", "NOTIFICACION", "OFICIO"},
+                    new String[]{".pdf", ".doc", ".docx", ".msg", ".eml"},
+                    25L,
+                    false
+            ),
+            "Resoluciones", new ConfiguracionSubcarpeta(
+                    "Resoluciones",
+                    "Resoluciones y decisiones oficiales",
+                    new String[]{"RESOLUCION", "DECRETO", "SENTENCIA", "DICTAMEN"},
+                    new String[]{".pdf", ".doc", ".docx"},
+                    50L,
+                    true
+            )
+    );
 
     public ExpedientesServiceImpl(
             AlfrescoClient alfrescoClient,
@@ -189,7 +243,7 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             crearSubcarpetasEstandar(expedienteFolderId);
 
             log.info("Expediente creado exitosamente en '{}': codigo {}, ID {}", req.carpetaBase(), expedienteCodigo,expedienteFolderId);
-            return new Expediente(expedienteCodigo, req.titulo(), "VIGENTE", req.metadatos());
+            return new Expediente(expedienteFolderId, expedienteCodigo, req.titulo(), "VIGENTE", req.metadatos());
 
         } catch (Exception e) {
             log.error("Error creando expediente en carpeta '{}': {}",
@@ -211,12 +265,16 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             NodeEntry node;
 
             // Detectar si es nodeId (UUID) o número de expediente
-            if (id.matches("[a-f0-9-]{36}")) {
-                log.debug("Buscando por nodeId: {}", id);
+            //if (id.matches("[a-f0-9-]{36}")) {
+            if (id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")) {
+                log.debug("Buscando por nodeId UUID: {}", id);
                 node = alfrescoClient.getNode(id);
-            } else {
+            } else if (id.startsWith("EXP-")) {
+                // Es número de expediente
                 log.debug("Buscando por número de expediente: {}", id);
                 node = buscarExpedientePorNumero(id);
+            } else {
+                throw new IllegalArgumentException("Formato de ID no válido: " + id);
             }
 
              //       = alfrescoClient.getNode(id);
@@ -228,6 +286,7 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             //String numeroExpediente = getStringProperty(props, "dms:numeroExpediente", node.entry().name());
             String estado = getStringProperty(props, PROP_ESTADO, "VIGENTE");
             String numeroExpediente = getStringProperty(props, PROP_NUMERO_EXPEDIENTE, node.entry().name());
+            String numeroExpedienteId = getStringProperty(props, PROP_EXPEDIENTE_ID, node.entry().id());
 
             // Crear expediente
             Map<String, String> metadatos = extraerMetadatos(props);
@@ -246,14 +305,14 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             // Información de contenido si está disponible
             if (node.entry().content() != null) {
                 NodeEntry.Content content = node.entry().content();
-                metadatos.put("tamaño", formatearTamaño(content.size()));
+                metadatos.put("tamaño", formatearTamano(content.size()));
                 metadatos.put("tipoMime", content.mimeType() != null ? content.mimeType() : "N/A");
             } else {
                 metadatos.put("tamaño", "Carpeta");
                 metadatos.put("tipoMime", "folder");
             }
 
-            Expediente expediente = new Expediente(numeroExpediente, titulo, estado, metadatos);
+            Expediente expediente = new Expediente(numeroExpedienteId, numeroExpediente, titulo, estado, metadatos);
 
             // Por ahora página vacía de documentos
             PageDocumento page = new PageDocumento(List.of(), 0, 20, 0);
@@ -279,14 +338,14 @@ public class ExpedientesServiceImpl implements ExpedientesService {
         }
     }
 
-    private String formatearTamaño(Long size) {
+    private String formatearTamano(Long size) {
         if (size == null) return "0 bytes";
         if (size < 1024) return size + " bytes";
         if (size < 1024 * 1024) return String.format("%.1f KB", size / 1024.0);
         return String.format("%.1f MB", size / (1024.0 * 1024.0));
     }
 
-    private NodeEntry buscarExpedientePorNumeroConSolr(String numeroExpediente) {
+    /*private NodeEntry buscarExpedientePorNumeroConSolr(String numeroExpediente) {
         try {
             log.info("=== INICIANDO BÚSQUEDA POR NÚMERO ===");
             log.info("Número de expediente buscado: '{}'", numeroExpediente);
@@ -298,12 +357,12 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             SearchResponse results = alfrescoClient.searchLucene(query, 1, 0);
             log.info("Búsqueda ejecutada. Verificando resultados...");
 
-            /*if (results.list() == null || results.list().isEmpty()) {
+            --------if (results.list() == null || results.list().isEmpty()) {
                 throw new AlfrescoException("Expediente no encontrado: " + numeroExpediente);
             }
 
             // Obtener el nodeId del primer resultado
-            String nodeId = results.list().get(0).entry().id();*/
+            String nodeId = results.list().get(0).entry().id();------
 
             // Log detallado de la respuesta
             if (results == null) {
@@ -332,9 +391,9 @@ public class ExpedientesServiceImpl implements ExpedientesService {
                 throw new AlfrescoException("Expediente no encontrado: " + numeroExpediente);
             }
 
-            /*if (results.list() == null || results.list().entries() == null || results.list().entries().isEmpty()) {
+            ------if (results.list() == null || results.list().entries() == null || results.list().entries().isEmpty()) {
                 throw new AlfrescoException("Expediente no encontrado: " + numeroExpediente);
-            }*/
+            }-----
 
             // Obtener el nodeId del primer resultado
             String nodeId = results.list().entries().get(0).entry().id();
@@ -354,18 +413,145 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.error("=== FIN ERROR ===", e);
             throw new RuntimeException("No se pudo encontrar expediente: " + numeroExpediente, e);
         }
+    }*/
+
+    private NodeEntry buscarExpedientePorNumeroConSolr(String numeroExpediente) {
+        try {
+            log.info("=== BÚSQUEDA CON SOLR ===");
+            log.info("Número de expediente buscado: '{}'", numeroExpediente);
+
+            // Intentar primero con dms:numeroExpediente
+            String query = "TYPE:\"cm:folder\" AND @dms\\:numeroExpediente:\"" + numeroExpediente + "\"";
+            log.info("Query 1 (dms:numeroExpediente): '{}'", query);
+
+            SearchResponse results = alfrescoClient.searchLucene(query, 1, 0);
+
+            // Si no encuentra con dms:numeroExpediente, intentar con cm:name
+            if (results == null || results.list() == null ||
+                    results.list().entries() == null || results.list().entries().isEmpty()) {
+
+                log.info("No encontrado con dms:numeroExpediente, intentando con cm:name...");
+                query = "TYPE:\"cm:folder\" AND cm:name:\"" + numeroExpediente + "\"";
+                log.info("Query 2 (cm:name): '{}'", query);
+
+                results = alfrescoClient.searchLucene(query, 1, 0);
+            }
+
+            // Si tampoco encuentra con cm:name, intentar case-insensitive
+            if (results == null || results.list() == null ||
+                    results.list().entries() == null || results.list().entries().isEmpty()) {
+
+                log.info("No encontrado con cm:name exacto, intentando case-insensitive...");
+                query = "TYPE:\"cm:folder\" AND cm:name:\"" + numeroExpediente.toLowerCase() + "\"";
+                log.info("Query 3 (lowercase): '{}'", query);
+
+                results = alfrescoClient.searchLucene(query, 1, 0);
+            }
+
+            // Validar resultados finales
+            if (results == null || results.list() == null ||
+                    results.list().entries() == null || results.list().entries().isEmpty()) {
+
+                log.warn("No se encontraron resultados con ninguna estrategia para: {}", numeroExpediente);
+                throw new AlfrescoException("Expediente no encontrado: " + numeroExpediente);
+            }
+
+            String nodeId = results.list().entries().get(0).entry().id();
+            log.info("NodeId encontrado con Solr: '{}'", nodeId);
+
+            NodeEntry node = alfrescoClient.getNode(nodeId);
+            log.info("=== BÚSQUEDA SOLR COMPLETADA EXITOSAMENTE ===");
+            return node;
+
+        } catch (Exception e) {
+            log.error("=== ERROR EN BÚSQUEDA SOLR ===");
+            log.error("Número buscado: {}", numeroExpediente);
+            log.error("Tipo de error: {}", e.getClass().getSimpleName());
+            log.error("Mensaje de error: {}", e.getMessage());
+            log.error("=== FIN ERROR SOLR ===", e);
+            throw new RuntimeException("No se pudo encontrar expediente: " + numeroExpediente, e);
+        }
     }
 
     private NodeEntry buscarExpedientePorNumero(String numeroExpediente) {
         try {
+            log.info("=== BÚSQUEDA POR NÚMERO DE EXPEDIENTE ===");
+            log.info("Número buscado: '{}'", numeroExpediente);
+
+            // Buscar en carpetas base conocidas
+            List<String> carpetasBase = alfrescoClient.getChildrenNames("-root-");
+            Set<String> carpetasRelevantes = Set.of("Repositorio", "Expedientes", "Archivo");
+
+            for (String carpetaBase : carpetasBase) {
+                if (!carpetasRelevantes.contains(carpetaBase)) continue;
+
+                try {
+                    // Usar el método mejorado para buscar la carpeta base
+                    String carpetaBaseId = findChildIdByName("-root-", carpetaBase);
+                    if (carpetaBaseId == null) continue;
+
+                    log.debug("Buscando en carpeta '{}' (ID: {})", carpetaBase, carpetaBaseId);
+
+                    // Buscar el expediente (ya es case-insensitive por el cambio en findChildIdByName)
+                    String expedienteId = findChildIdByName(carpetaBaseId, numeroExpediente);
+
+                    if (expedienteId != null) {
+                        log.info("✓ Expediente encontrado en '{}': {}", carpetaBase, expedienteId);
+                        return alfrescoClient.getNode(expedienteId);
+                    }
+
+                } catch (Exception e) {
+                    log.warn("Error buscando en {}: {}", carpetaBase, e.getMessage());
+                }
+            }
+
+            throw new AlfrescoException("Expediente no encontrado: " + numeroExpediente);
+
+        } catch (Exception e) {
+            log.error("Error en búsqueda: {}", e.getMessage());
+            throw new RuntimeException("No se pudo encontrar expediente: " + numeroExpediente, e);
+        }
+    }
+
+    // Agregar este método auxiliar
+    private String findChildIdByName(String parentId, String name) {
+        try {
+            NodeChildrenList children = alfrescoClient.getNodeChildren(parentId, null);
+
+            if (children != null && children.getList() != null &&
+                    children.getList().getEntries() != null) {
+
+                return children.getList().getEntries().stream()
+                        .filter(e -> name.equalsIgnoreCase(e.getEntry().name()))
+                        .map(e -> e.getEntry().id())
+                        .findFirst()
+                        .orElse(null);
+            }
+            return null;
+
+        } catch (Exception e) {
+            log.warn("Error buscando hijo {}: {}", name, e.getMessage());
+            return null;
+        }
+    }
+
+    /*private NodeEntry buscarExpedientePorNumero(String numeroExpediente) {
+        try {
             log.info("=== INICIANDO BÚSQUEDA POR NÚMERO (NODE API) ===");
             log.info("Número de expediente buscado: '{}'", numeroExpediente);
+            log.info("REPOSITORIO_ID: '{}'", REPOSITORIO_ID);
 
             // Usar Node Children API en lugar de Search API
             String whereClause = String.format("(name='%s')", numeroExpediente.replace("'", "\\'"));
             log.info("Where clause construida: '{}'", whereClause);
 
             NodeChildrenList children = alfrescoClient.getNodeChildren(REPOSITORIO_ID, whereClause);
+            log.info("Resultado búsqueda - children: {}", children != null ? "no null" : "null");
+
+            /*if (children != null && children.getList() != null) {
+                log.info("Entradas encontradas: {}",
+                        children.getList().getEntries() != null ? children.getList().getEntries().size() : 0);
+            }
 
             if (children == null || children.getList() == null ||
                     children.getList().getEntries() == null || children.getList().getEntries().isEmpty()) {
@@ -380,7 +566,23 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             // Obtener el nodo completo
             NodeEntry node = alfrescoClient.getNode(nodeId);
             log.info("=== BÚSQUEDA COMPLETADA EXITOSAMENTE ===");
-            return node;
+            return node;------
+
+            if (children != null && children.getList() != null &&
+                    children.getList().getEntries() != null && !children.getList().getEntries().isEmpty()) {
+
+                String nodeId = children.getList().getEntries().get(0).getEntry().id();
+                log.info("NodeId encontrado con propiedad custom: '{}'", nodeId);
+
+                NodeEntry node = alfrescoClient.getNode(nodeId);
+                log.info("=== BÚSQUEDA POR PROPIEDAD CUSTOM EXITOSA ===");
+                return node;
+            }
+
+            log.warn("No encontrado con dms:numeroExpediente, probando con cm:name...");
+
+            // Si no funciona con dms:numeroExpediente, lanzar excepción para ir al catch
+            throw new AlfrescoException("No encontrado con propiedad custom:" + numeroExpediente);
 
         } catch (Exception e) {
             log.error("=== ERROR EN BÚSQUEDA POR NODE API ===");
@@ -392,7 +594,7 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.warn("Intentando fallback con Solr...");
             return buscarExpedientePorNumeroConSolr(numeroExpediente);
         }
-    }
+    }*/
 
     @Override
     public Mono<String> ensureExpedienteFolder(String expedienteCodigo) {
@@ -418,9 +620,9 @@ public class ExpedientesServiceImpl implements ExpedientesService {
 
     // Métodos auxiliares - agregar al final de la clase
     private String generarCodigoExpediente() {
-        String año = String.valueOf(java.time.LocalDateTime.now().getYear());
+        String ano = String.valueOf(java.time.LocalDateTime.now().getYear());
         long secuencial = System.currentTimeMillis() % 1000000;
-        return String.format("EXP-%s-%06d", año, secuencial);
+        return String.format("EXP-%s-%06d", ano, secuencial);
     }
 
     private void crearSubcarpetasEstandar(String expedienteFolderId) {
@@ -506,6 +708,289 @@ public class ExpedientesServiceImpl implements ExpedientesService {
 
         // Por ahora total 0, puedes implementar conteo real más tarde
         return new CarpetaBase(nombre, descripcion, 0);
+    }
+
+    @Override
+    public UploadResponseCompleto uploadDocumento(String expedienteId, UploadDocumentoRequest request) {
+        try {
+            log.info("Subiendo documento - Expediente: {}, Archivo: {}, Subcarpeta: {}",
+                    expedienteId, request.nombreArchivo(), request.subcarpeta());
+
+            // Validaciones
+            validarRequestUpload(request);
+
+            // Buscar expediente
+            NodeEntry expedienteNode = buscarExpediente(expedienteId);
+            log.debug("Expediente encontrado: {}", expedienteNode.entry().name());
+
+            // Buscar o crear subcarpeta
+            String subcarpetaId = buscarOCrearSubcarpeta(expedienteNode.entry().id(), request.subcarpeta());
+            log.debug("Subcarpeta obtenida: {}", subcarpetaId);
+
+            // Construir propiedades del documento (sin usar propiedades DMS por ahora)
+            Map<String, Object> propiedades = Map.of(
+                    "cm:title", request.nombreArchivo(),
+                    "cm:description", request.descripcion() != null ? request.descripcion() : ""
+            );
+
+            // Subir archivo
+            NodeEntry documentoNode = alfrescoClient.uploadFile(
+                    subcarpetaId,
+                    request.nombreArchivo(),
+                    request.contenido(),
+                    request.mimeType(),
+                    propiedades
+            );
+
+            log.info("Documento subido exitosamente: {}", documentoNode.entry().id());
+            return construirUploadResponse(documentoNode, request);
+
+        } catch (Exception e) {
+            log.error("Error subiendo documento: {}", e.getMessage(), e);
+            throw new RuntimeException("Error al subir documento: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public PageDocumento<DocumentoInfo> getDocumentos(String expedienteId, String subcarpeta, int page, int size) {
+        try {
+            log.debug("Obteniendo documentos - Expediente: {}, Subcarpeta: {}, Page: {}, Size: {}",
+                    expedienteId, subcarpeta, page, size);
+
+            NodeEntry expedienteNode = buscarExpediente(expedienteId);
+            List<DocumentoInfo> documentos = new ArrayList<>();
+
+            if (subcarpeta != null && !subcarpeta.trim().isEmpty()) {
+                documentos.addAll(getDocumentosDeSubcarpeta(expedienteNode.entry().id(), subcarpeta));
+            } else {
+                // Obtener documentos de todas las subcarpetas
+                for (String sub : SUBCARPETAS_VALIDAS) {
+                    try {
+                        documentos.addAll(getDocumentosDeSubcarpeta(expedienteNode.entry().id(), sub));
+                    } catch (Exception e) {
+                        log.warn("Error obteniendo documentos de subcarpeta {}: {}", sub, e.getMessage());
+                    }
+                }
+            }
+
+            // Paginación manual
+            int start = page * size;
+            int end = Math.min(start + size, documentos.size());
+            List<DocumentoInfo> paginatedDocs = start < documentos.size()
+                    ? documentos.subList(start, end)
+                    : List.of();
+
+            log.debug("Documentos encontrados: {} total, {} en página actual",
+                    documentos.size(), paginatedDocs.size());
+
+            return new PageDocumento<>(paginatedDocs, page, size, documentos.size());
+
+        } catch (Exception e) {
+            log.error("Error obteniendo documentos de expediente {}: {}", expedienteId, e.getMessage(), e);
+            throw new RuntimeException("Error al obtener documentos: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<SubcarpetaInfo> getSubcarpetas(String expedienteId) {
+        try {
+            log.debug("Obteniendo subcarpetas del expediente: {}", expedienteId);
+
+            NodeEntry expedienteNode = buscarExpediente(expedienteId);
+            List<SubcarpetaInfo> subcarpetas = new ArrayList<>();
+
+            for (String nombreSubcarpeta : SUBCARPETAS_VALIDAS) {
+                try {
+                    String subcarpetaId = buscarSubcarpeta(expedienteNode.entry().id(), nombreSubcarpeta);
+                    if (subcarpetaId != null) {
+                        SubcarpetaInfo info = construirSubcarpetaInfo(subcarpetaId, nombreSubcarpeta);
+                        subcarpetas.add(info);
+                    }
+                } catch (Exception e) {
+                    log.warn("Error procesando subcarpeta {}: {}", nombreSubcarpeta, e.getMessage());
+                }
+            }
+
+            log.debug("Subcarpetas obtenidas: {}", subcarpetas.size());
+            return subcarpetas;
+
+        } catch (Exception e) {
+            log.error("Error obteniendo subcarpetas de expediente {}: {}", expedienteId, e.getMessage(), e);
+            throw new RuntimeException("Error al obtener subcarpetas: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public boolean isSubcarpetaValida(String subcarpeta) {
+        return subcarpeta != null && SUBCARPETAS_VALIDAS.contains(subcarpeta.trim());
+    }
+
+// Métodos auxiliares privados:
+
+    private void validarRequestUpload(UploadDocumentoRequest request) {
+        if (!isSubcarpetaValida(request.subcarpeta())) {
+            throw new IllegalArgumentException("Subcarpeta no válida: " + request.subcarpeta() +
+                    ". Válidas: " + SUBCARPETAS_VALIDAS);
+        }
+
+        ConfiguracionSubcarpeta config = CONFIGURACION_SUBCARPETAS.get(request.subcarpeta());
+        if (config != null) {
+            long tamanoMB = request.contenido().length / (1024 * 1024);
+            if (tamanoMB > config.tamanoMaximoMB()) {
+                throw new IllegalArgumentException("Archivo demasiado grande: " + tamanoMB +
+                        "MB. Máximo permitido: " + config.tamanoMaximoMB() + "MB");
+            }
+
+            String extension = obtenerExtension(request.nombreArchivo());
+            if (!Arrays.asList(config.extensionesPermitidas()).contains(extension.toLowerCase())) {
+                throw new IllegalArgumentException("Extensión no permitida: " + extension +
+                        ". Permitidas: " + Arrays.toString(config.extensionesPermitidas()));
+            }
+        }
+    }
+
+    private NodeEntry buscarExpediente(String expedienteId) {
+        try {
+            if (expedienteId.matches("[a-f0-9-]{36}")) {
+                return alfrescoClient.getNode(expedienteId);
+            } else {
+                return buscarExpedientePorNumero(expedienteId);
+            }
+        } catch (Exception e) {
+            throw new AlfrescoException("Expediente no encontrado: " + expedienteId);
+        }
+    }
+
+    private String buscarOCrearSubcarpeta(String expedienteId, String nombreSubcarpeta) {
+        String subcarpetaId = buscarSubcarpeta(expedienteId, nombreSubcarpeta);
+
+        if (subcarpetaId != null) {
+            log.debug("Subcarpeta {} ya existe: {}", nombreSubcarpeta, subcarpetaId);
+            return subcarpetaId;
+        }
+
+        log.debug("Creando subcarpeta {}", nombreSubcarpeta);
+        Map<String, Object> props = Map.of(
+                "cm:title", nombreSubcarpeta,
+                "cm:description", "Subcarpeta para " + nombreSubcarpeta.toLowerCase()
+        );
+
+        NodeEntry subcarpeta = alfrescoClient.createFolder(expedienteId, nombreSubcarpeta, props);
+        return subcarpeta.entry().id();
+    }
+
+    private String buscarSubcarpeta(String expedienteId, String nombreSubcarpeta) {
+        try {
+            NodeChildrenList children = alfrescoClient.getNodeChildren(
+                    expedienteId,
+                    String.format("(name='%s')", nombreSubcarpeta.replace("'", "\\'"))
+            );
+
+            if (children != null && children.getList() != null &&
+                    children.getList().getEntries() != null && !children.getList().getEntries().isEmpty()) {
+                return children.getList().getEntries().get(0).getEntry().id();
+            }
+
+            return null;
+        } catch (Exception e) {
+            log.warn("Error buscando subcarpeta {}: {}", nombreSubcarpeta, e.getMessage());
+            return null;
+        }
+    }
+
+    private UploadResponseCompleto construirUploadResponse(NodeEntry documentoNode, UploadDocumentoRequest request) {
+        NodeEntry.Node node = documentoNode.entry();
+
+        return new UploadResponseCompleto(
+                node.id(),
+                "1.0",
+                node.name(),
+                request.subcarpeta(),
+                request.tipoDocumento(),
+                request.contenido().length,
+                request.mimeType(),
+                OffsetDateTime.now(),
+                "system"
+        );
+    }
+
+    private List<DocumentoInfo> getDocumentosDeSubcarpeta(String expedienteId, String subcarpeta) {
+        String subcarpetaId = buscarSubcarpeta(expedienteId, subcarpeta);
+        if (subcarpetaId == null) {
+            return List.of();
+        }
+
+        try {
+            NodeChildrenList children = alfrescoClient.getNodeChildren(subcarpetaId, null);
+            if (children == null || children.getList() == null || children.getList().getEntries() == null) {
+                return List.of();
+            }
+
+            return children.getList().getEntries().stream()
+                    .filter(entry -> "cm:content".equals(entry.getEntry().nodeType()))
+                    .map(entry -> construirDocumentoInfo(entry.getEntry(), subcarpeta))
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.warn("Error obteniendo documentos de subcarpeta {}: {}", subcarpeta, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private DocumentoInfo construirDocumentoInfo(NodeEntry.Node node, String subcarpeta) {
+        return new DocumentoInfo(
+                node.id(),
+                node.name(),
+                "DOCUMENTO", // Valor por defecto ya que no usamos propiedades DMS aún
+                subcarpeta,
+                node.content() != null ? node.content().size() : 0L,
+                node.content() != null ? node.content().mimeType() : "application/octet-stream",
+                getStringProperty(node.properties(), "cm:created", ""),
+                getStringProperty(node.properties(), "cm:creator", "system")
+        );
+    }
+
+    private SubcarpetaInfo construirSubcarpetaInfo(String subcarpetaId, String nombre) {
+        try {
+            NodeChildrenList children = alfrescoClient.getNodeChildren(subcarpetaId, null);
+
+            int cantidadDocs = 0;
+            long tamanoTotal = 0L;
+
+            if (children != null && children.getList() != null && children.getList().getEntries() != null) {
+                for (var entry : children.getList().getEntries()) {
+                    if ("cm:content".equals(entry.getEntry().nodeType())) {
+                        cantidadDocs++;
+                        if (entry.getEntry().content() != null && entry.getEntry().content().size() != null) {
+                            tamanoTotal += entry.getEntry().content().size();
+                        }
+                    }
+                }
+            }
+
+            ConfiguracionSubcarpeta config = CONFIGURACION_SUBCARPETAS.get(nombre);
+            String descripcion = config != null ? config.descripcion() : "Subcarpeta de " + nombre;
+
+            return new SubcarpetaInfo(
+                    nombre,
+                    subcarpetaId,
+                    descripcion,
+                    cantidadDocs,
+                    tamanoTotal,
+                    OffsetDateTime.now()
+            );
+
+        } catch (Exception e) {
+            log.warn("Error construyendo info de subcarpeta {}: {}", nombre, e.getMessage());
+            return new SubcarpetaInfo(nombre, subcarpetaId, "Error obteniendo información", 0, 0L, OffsetDateTime.now());
+        }
+    }
+
+    private String obtenerExtension(String nombreArchivo) {
+        if (nombreArchivo == null || !nombreArchivo.contains(".")) {
+            return "";
+        }
+        return nombreArchivo.substring(nombreArchivo.lastIndexOf("."));
     }
 
 }

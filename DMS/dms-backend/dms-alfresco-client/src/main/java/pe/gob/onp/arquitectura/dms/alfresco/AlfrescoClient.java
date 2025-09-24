@@ -52,7 +52,7 @@ public class AlfrescoClient {
         NodeBodyCreate body = new NodeBodyCreate(name, "cm:folder", properties);
         log.debug("body: {}", body);
         try {
-            log.info("uri1: {}",API_V1 + "/nodes/{id}/children");
+            log.info("uri1: {}", API_V1 + "/nodes/{id}/children");
             return exchange(
                     client.post().uri(API_V1 + "/nodes/{id}/children", parentId)
                             .contentType(MediaType.APPLICATION_JSON).bodyValue(body),
@@ -286,7 +286,7 @@ public class AlfrescoClient {
                     }
                     log.info("Carpeta '{}' encontrada en segundo intento", seg);
                 }}*/
-                // Crear carpeta con retry en caso de concurrencia
+    // Crear carpeta con retry en caso de concurrencia
                 /*NodeEntry created = createFolderWithRetry(parentId, seg, Map.of("cm:title", seg));
                 childId = created.entry().id();
                 log.info("Carpeta '{}' creada exitosamente con ID: {}... a donde iré???", seg, childId);
@@ -301,7 +301,6 @@ public class AlfrescoClient {
         log.info("Path completado exitosamente. ID final: {}", parentId);
         return parentId;
     }*/
-
     public String ensurePath(String absolutePathFromRoot) {
         log.info("=== ENSURE PATH START ===");
         log.info("Path solicitado: '{}'", absolutePathFromRoot);
@@ -445,7 +444,49 @@ public class AlfrescoClient {
      * Busca un hijo por nombre usando: GET /nodes/{parentId}/children?where=(name='...')&include=properties
      * Devuelve el nodeId o null si no existe.
      */
+
+// Reemplazar el método findChildIdByName existente
     private String findChildIdByName(String parentId, String name) {
+        log.debug(">>> FIND CHILD: '{}' en parent '{}'", name, parentId);
+
+        if (name == null || name.isBlank()) {
+            log.warn("Nombre vacío en findChildIdByName");
+            return null;
+        }
+
+        try {
+            NodeChildrenList res = exchange(
+                    client.get().uri(API_V1 + "/nodes/{pid}/children", parentId),
+                    NodeChildrenList.class
+            ).block();
+
+            if (res == null || res.getList() == null || res.getList().getEntries() == null) {
+                log.debug("<<< FIND CHILD RESULT: NO ENCONTRADO (lista vacía)");
+                return null;
+            }
+
+            // CAMBIO CRÍTICO: Búsqueda case-insensitive
+            String childId = res.getList().getEntries().stream()
+                    .filter(entry -> name.equalsIgnoreCase(entry.getEntry().name()))
+                    .map(entry -> entry.getEntry().id())
+                    .findFirst()
+                    .orElse(null);
+
+            if (childId != null) {
+                log.debug("<<< FIND CHILD RESULT: ENCONTRADO con ID '{}'", childId);
+            } else {
+                log.debug("<<< FIND CHILD RESULT: NO ENCONTRADO en lista de {} elementos",
+                        res.getList().getEntries().size());
+            }
+            return childId;
+
+        } catch (Exception e) {
+            log.warn("<<< FIND CHILD ERROR: {} - RETORNANDO NULL", e.getMessage());
+            return null;
+        }
+    }
+
+    /*private String findChildIdByName(String parentId, String name) {
         log.debug(">>> FIND CHILD: '{}' en parent '{}'", name, parentId);
 
         // PROTECCIÓN: evitar bucles infinitos
@@ -460,11 +501,11 @@ public class AlfrescoClient {
         try {
             NodeChildrenList res = exchange(
                     client.get()
-                            /*.uri(uri -> uri
+                            /*--------.uri(uri -> uri
                                     .path(API_V1 + "/nodes/{pid}/children")
                                     .queryParam("where", where)
                                     .queryParam("include", "properties")
-                                    .build(parentId)),*/
+                                    .build(parentId)),------------
                             .uri(API_V1 + "/nodes/{pid}/children", parentId),
                     NodeChildrenList.class
             ).block();
@@ -474,7 +515,7 @@ public class AlfrescoClient {
                     res.getList().getEntries().isEmpty()) {
                 log.debug("<<< FIND CHILD RESULT: NO ENCONTRADO");
                 return null;
-            }*/
+            }-------
 
             if (res == null || res.getList() == null || res.getList().getEntries() == null) {
                 log.debug("<<< FIND CHILD RESULT: NO ENCONTRADO (lista vacía)");
@@ -503,7 +544,7 @@ public class AlfrescoClient {
             log.warn("<<< FIND CHILD ERROR: {} - RETORNANDO NULL", e.getMessage());
             return null;  // NO reintentar, devolver null
         }
-    }
+    }*/
 
     /*private String findChildIdByName(String parentId, String name) {
         log.debug("Buscando hijo '{}' en parent '{}'", name, parentId);
@@ -615,25 +656,72 @@ public class AlfrescoClient {
         log.info("Parent ID: '{}', Where: '{}'", parentId, whereClause);
 
         String uri = API_V1 + "/nodes/{id}/children";
+        log.info("URI0: '{}'", uri);
         if (whereClause != null && !whereClause.trim().isEmpty()) {
             uri += "?where=" + whereClause;
         }
-
+        log.info("URI1: '{}'", uri);
         try {
+            log.info("Entramos al Try del getNodeChildren");
             NodeChildrenList result = exchange(
-                    client.get().uri(uri, parentId),
-                    NodeChildrenList.class
+                    client.get().uri(uri, parentId), NodeChildrenList.class
             ).block();
 
-            log.info("Resultado: {} hijos encontrados",
+            /*log.info("Resultado: {} hijos encontrados",
                     result != null && result.getList() != null && result.getList().getEntries() != null
-                            ? result.getList().getEntries().size() : 0);
+                            ? result.getList().getEntries().size() : 0);*/
 
+            log.info("=== DESPUÉS DEL EXCHANGE ===");
+            log.info("Resultado obtenido: {}", result != null ? "no null" : "null");
+
+            if (result != null) {
+                log.info("Result.getList(): {}", result.getList() != null ? "no null" : "null");
+                if (result.getList() != null) {
+                    log.info("Result.getList().getEntries(): {}",
+                            result.getList().getEntries() != null ? "no null" : "null");
+                    if (result.getList().getEntries() != null) {
+                        log.info("Número total de entradas: {}", result.getList().getEntries().size());
+
+                        // Log de las primeras entradas encontradas
+                        for (int i = 0; i < Math.min(3, result.getList().getEntries().size()); i++) {
+                            var entry = result.getList().getEntries().get(i);
+                            log.info("Entrada {}: name='{}', id='{}'",
+                                    i, entry.getEntry().name(), entry.getEntry().id());
+                        }
+                    }
+                }
+            }
+
+            log.info("=== FIN OBTENCIÓN HIJOS ===");
             return result;
 
         } catch (Exception e) {
             log.error("Error obteniendo hijos de {}: {}", parentId, e.getMessage());
             throw new AlfrescoException("No se pudieron obtener hijos de: " + parentId, e);
+        }
+    }
+
+    public byte[] downloadFile(String nodeId) {
+        log.debug("Descargando archivo con nodeId: {}", nodeId);
+
+        return exchange(
+                client.get().uri(API_V1 + "/nodes/{id}/content", nodeId),
+                byte[].class
+        ).block();
+    }
+
+    public byte[] getRendition(String nodeId, String renditionId) {
+        log.debug("Obteniendo rendición '{}' para nodo '{}'", renditionId, nodeId);
+
+        try {
+            return exchange(
+                    client.get().uri(API_V1 + "/nodes/{id}/renditions/{renditionId}/content",
+                            nodeId, renditionId),
+                    byte[].class
+            ).block();
+        } catch (Exception e) {
+            log.warn("No se pudo obtener rendición '{}' para nodo '{}': {}", renditionId, nodeId, e.getMessage());
+            return null;
         }
     }
 

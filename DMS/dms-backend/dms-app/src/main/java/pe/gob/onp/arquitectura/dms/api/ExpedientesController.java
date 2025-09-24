@@ -12,6 +12,15 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import pe.gob.onp.arquitectura.dms.api.dto.DocumentoDtos.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import pe.gob.onp.arquitectura.dms.alfresco.dto.NodeEntry;
+
 @RestController
 @RequestMapping("/expedientes")
 public class ExpedientesController {
@@ -87,6 +96,90 @@ public class ExpedientesController {
             log.error("Error en debug: {}", e.getMessage());
             return Map.of("status", "error", "message", e.getMessage());
         }
+    }
+
+    @PostMapping("/{expedienteId}/documentos")
+    @PreAuthorize("hasAnyRole('DMS_ADMIN','EXPEDIENTE_ADMIN','EDITOR')")
+    public UploadResponseCompleto uploadDocumento(
+            @PathVariable("expedienteId") String expedienteId,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("subcarpeta") String subcarpeta,
+            @RequestPart(value = "tipoDocumento", required = false) String tipoDocumento,
+            @RequestPart(value = "descripcion", required = false) String descripcion,
+            @RequestPart(value = "metadatos", required = false) Map<String, String> metadatos) {
+
+        log.info("POST /expedientes/{}/documentos - Subiendo documento: archivo='{}', subcarpeta='{}'",
+                expedienteId, file.getOriginalFilename(), subcarpeta);
+
+        try {
+            if (file.isEmpty()) {
+                throw new IllegalArgumentException("El archivo no puede estar vacío");
+            }
+
+            UploadDocumentoRequest request = new UploadDocumentoRequest(
+                    file.getBytes(),
+                    file.getOriginalFilename(),
+                    file.getContentType() != null ? file.getContentType() : "application/octet-stream",
+                    subcarpeta,
+                    tipoDocumento != null ? tipoDocumento : "DOCUMENTO",
+                    descripcion,
+                    metadatos
+            );
+
+            return svc.uploadDocumento(expedienteId, request);
+
+        } catch (Exception e) {
+            log.error("Error subiendo documento: {}", e.getMessage(), e);
+            throw new RuntimeException("Error al subir documento: " + e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/{expedienteId}/documentos")
+    @PreAuthorize("hasAnyRole('DMS_ADMIN','EXPEDIENTE_ADMIN','EDITOR','REVISOR','LECTOR','EXTERNO')")
+    public PageDocumento<DocumentoInfo> getDocumentos(
+            @PathVariable("expedienteId") String expedienteId,
+            @RequestParam(value = "subcarpeta", required = false) String subcarpeta,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+
+        log.info("GET /expedientes/{}/documentos - Listando documentos", expedienteId);
+        return svc.getDocumentos(expedienteId, subcarpeta, page, size);
+    }
+
+    @GetMapping("/{expedienteId}/documentos/{documentoId}/download")
+    @PreAuthorize("hasAnyRole('DMS_ADMIN','EXPEDIENTE_ADMIN','EDITOR','REVISOR','LECTOR','EXTERNO')")
+    public ResponseEntity<Resource> downloadDocumento(
+            @PathVariable("expedienteId") String expedienteId,
+            @PathVariable("documentoId") String documentoId) {
+
+        log.info("GET /expedientes/{}/documentos/{}/download", expedienteId, documentoId);
+
+        try {
+            NodeEntry documentoNode = alfrescoClient.getNode(documentoId);
+            byte[] contenido = alfrescoClient.downloadFile(documentoId);
+
+            ByteArrayResource resource = new ByteArrayResource(contenido);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(
+                    documentoNode.entry().content() != null ?
+                            documentoNode.entry().content().mimeType() : "application/octet-stream"));
+            headers.setContentLength(contenido.length);
+            headers.setContentDispositionFormData("attachment", documentoNode.entry().name());
+
+            return ResponseEntity.ok().headers(headers).body(resource);
+
+        } catch (Exception e) {
+            log.error("Error descargando documento {}: {}", documentoId, e.getMessage(), e);
+            throw new RuntimeException("Error al descargar documento: " + e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/{expedienteId}/subcarpetas")
+    @PreAuthorize("hasAnyRole('DMS_ADMIN','EXPEDIENTE_ADMIN','EDITOR','REVISOR','LECTOR','EXTERNO')")
+    public List<SubcarpetaInfo> getSubcarpetas(@PathVariable("expedienteId") String expedienteId) {
+        log.info("GET /expedientes/{}/subcarpetas", expedienteId);
+        return svc.getSubcarpetas(expedienteId);
     }
 
 }

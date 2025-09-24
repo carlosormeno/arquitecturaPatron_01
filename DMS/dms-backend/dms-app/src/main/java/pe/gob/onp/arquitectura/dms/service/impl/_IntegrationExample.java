@@ -18,7 +18,7 @@ public class _IntegrationExample {
     public View demoCreateExpediente(String parentId) {
         var folder = alfresco.createFolder(parentId, "EXP-2025-0001", Map.of("cm:title", "Demo expediente"));
         var node = folder.entry();
-        var ex = new Expediente(node.id(), "Demo expediente", "VIGENTE", Map.of());
+        var ex = new Expediente(node.id(), node.name(), "Demo expediente", "VIGENTE", Map.of());
         var page = new PageDocumento(java.util.List.of(), 0, 20, 0);
         return new View(ex, page);
     }
