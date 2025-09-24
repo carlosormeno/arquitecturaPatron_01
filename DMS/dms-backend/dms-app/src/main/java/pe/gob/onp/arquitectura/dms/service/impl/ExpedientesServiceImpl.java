@@ -38,7 +38,8 @@ public class ExpedientesServiceImpl implements ExpedientesService {
     private final String rootPath;
     private static final Logger log = LoggerFactory.getLogger(ExpedientesServiceImpl.class);
 
-    private static final String DMS_NAMESPACE = "{http://www.onp.gob.pe/model/dms/1.0}";
+    //private static final String DMS_NAMESPACE = "{http://www.onp.gob.pe/model/dms/1.0}";
+    private static final String DMS_NAMESPACE = "dms:";
 
 
     private static final String PROP_NUMERO_EXPEDIENTE = DMS_NAMESPACE + "numeroExpediente";
@@ -195,15 +196,24 @@ public class ExpedientesServiceImpl implements ExpedientesService {
 
             // Crear carpeta del expediente
             log.info("antes de enviar el expedientePath a ensurePath");
-            String expedienteFolderId = alfrescoClient.ensurePath(expedientePath);
+            //String expedienteFolderId = alfrescoClient.ensurePath(expedientePath);
+            // DESPUÉS - separar creación de carpeta padre y expediente final:
+            String parentPath = req.carpetaBase(); // Solo la carpeta padre: "Expedientes"
+            String parentFolderId = alfrescoClient.ensurePath(parentPath); // Crear carpeta padre como cm:folder
+
+            // Crear el expediente como dms:expediente
+            Map<String, Object> expedienteProps = construirPropiedadesExpediente(req, expedienteCodigo);
+            NodeEntry expedienteNode = alfrescoClient.createExpediente(parentFolderId, expedienteCodigo, expedienteProps);
+            String expedienteFolderId = expedienteNode.entry().id();
+
             log.debug("Carpeta creada con ID: {}", expedienteFolderId);
 
             // Configurar propiedades del expediente
-            Map<String, Object> properties = new HashMap<>();
+            /*Map<String, Object> properties = new HashMap<>();
             properties.put("cm:title", req.titulo());
             properties.put("cm:description", req.descripcion() != null ? req.descripcion() : "");
             properties.put(PROP_NUMERO_EXPEDIENTE, expedienteCodigo);
-            properties.put(PROP_ESTADO, "VIGENTE");
+            properties.put(PROP_ESTADO, "VIGENTE");*/
 
             // Agregar metadatos del request
             /*if (req.metadatos() != null) {
@@ -212,7 +222,7 @@ public class ExpedientesServiceImpl implements ExpedientesService {
                 });
             }*/
             // Agregar metadatos del request
-            if (req.metadatos() != null) {
+            /*if (req.metadatos() != null) {
                 log.info("=== METADATOS RECIBIDOS ===");
                 log.info("Cantidad de metadatos: {}", req.metadatos().size());
                 log.info("Metadatos completos: {}", req.metadatos());
@@ -229,20 +239,69 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             }
 
             // Actualizar nodo con propiedades
-            alfrescoClient.updateNode(expedienteFolderId, properties);
+            alfrescoClient.updateNode(expedienteFolderId, properties);*/
             log.info("Propiedades actualizadas para expediente: {}", expedienteCodigo);
 
             // Crear subcarpetas estándar
             crearSubcarpetasEstandar(expedienteFolderId);
 
             log.info("Expediente creado exitosamente en '{}': codigo {}, ID {}", req.carpetaBase(), expedienteCodigo,expedienteFolderId);
-            return new Expediente(expedienteFolderId, expedienteCodigo, req.titulo(), "VIGENTE", req.metadatos());
+            //return new Expediente(expedienteFolderId, expedienteCodigo, req.titulo(), "VIGENTE", req.metadatos());
+            return new Expediente(expedienteFolderId, expedienteCodigo, req.titulo(), "INICIADO", req.metadatos());
 
         } catch (Exception e) {
             log.error("Error creando expediente en carpeta '{}': {}",
                     req.carpetaBase(), e.getMessage(), e);
             throw new RuntimeException("Error al crear expediente: " + e.getMessage(), e);
         }
+    }
+
+    // AGREGAR este método en ExpedientesServiceImpl.java
+
+    private Map<String, Object> construirPropiedadesExpediente(CreateRequest req, String expedienteCodigo) {
+        log.debug("Construyendo propiedades DMS para expediente: {}", expedienteCodigo);
+
+        Map<String, Object> properties = new HashMap<>();
+
+        // PROPIEDADES ESTÁNDAR DE ALFRESCO
+        properties.put("cm:title", req.titulo());
+        properties.put("cm:description", req.descripcion() != null ? req.descripcion() : "");
+
+        // USAR LAS CONSTANTES EXISTENTES PARA CONSISTENCIA
+        properties.put(PROP_NUMERO_EXPEDIENTE, expedienteCodigo);
+        properties.put(PROP_ESTADO, "INICIADO"); // Default del modelo (cambié de VIGENTE a INICIADO)
+        properties.put(PROP_CARPETA_BASE, req.carpetaBase());
+
+        // PROPIEDADES ADICIONALES OBLIGATORIAS SEGÚN MODELO
+        properties.put("dms:area", req.area() != null ? req.area() : "GENERAL");
+        properties.put("dms:fechaInicio", java.time.LocalDate.now().toString());
+        properties.put("dms:asunto", req.asunto() != null ? req.asunto() : req.titulo());
+        properties.put("dms:solicitante", req.solicitante() != null ? req.solicitante() : "SISTEMA");
+
+        // PROPIEDADES OPCIONALES CON DEFAULTS
+        properties.put("dms:prioridad", req.prioridad() != null ? req.prioridad() : "NORMAL");
+        properties.put("dms:confidencialidad", req.confidencialidad() != null ? req.confidencialidad() : "PUBLICO");
+
+        // Solo agregar si no son null
+        if (req.categoria() != null && !req.categoria().trim().isEmpty()) {
+            properties.put("dms:categoria", req.categoria());
+        }
+        if (req.observaciones() != null && !req.observaciones().trim().isEmpty()) {
+            properties.put("dms:observaciones", req.observaciones());
+        }
+
+        // METADATOS ADICIONALES del request
+        if (req.metadatos() != null) {
+            log.debug("Agregando {} metadatos adicionales", req.metadatos().size());
+            req.metadatos().forEach((key, value) -> {
+                if (value != null && !value.trim().isEmpty()) {
+                    properties.put("dms:" + key, value);
+                }
+            });
+        }
+
+        log.debug("Propiedades DMS construidas: {} propiedades", properties.size());
+        return properties;
     }
 
     @Override
@@ -277,7 +336,23 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             String titulo = getStringProperty(props, "cm:title", "Sin título");
             //String estado = getStringProperty(props, "dms:estado", "VIGENTE");
             //String numeroExpediente = getStringProperty(props, "dms:numeroExpediente", node.entry().name());
-            String estado = getStringProperty(props, PROP_ESTADO, "VIGENTE");
+            //String estado = getStringProperty(props, PROP_ESTADO, "VIGENTE");
+            //String estado = getStringProperty(props, PROP_ESTADO, "INICIADO");
+
+            // Agregar antes de la validación del estado:
+            log.debug("=== DEBUG PROPIEDADES EXPEDIENTE {} ===", id);
+            log.debug("Total propiedades encontradas: {}", props.size());
+            log.debug("Buscando propiedad: {}", PROP_ESTADO);
+            log.debug("Propiedad encontrada: {}", props.containsKey(PROP_ESTADO) ? "SÍ" : "NO");
+
+            Object estadoObj = props.get(PROP_ESTADO);
+            if (estadoObj == null) {
+                log.error("ERROR CRÍTICO: Expediente {} no tiene propiedad dms:estado", id);
+                log.error("Propiedades disponibles: {}", props.keySet());
+                throw new RuntimeException("Expediente sin estado válido");
+            }
+            String estado = estadoObj.toString();
+
             String numeroExpediente = getStringProperty(props, PROP_NUMERO_EXPEDIENTE, node.entry().name());
             String numeroExpedienteId = getStringProperty(props, PROP_EXPEDIENTE_ID, node.entry().id());
 
@@ -408,7 +483,7 @@ public class ExpedientesServiceImpl implements ExpedientesService {
         }
     }*/
 
-    private NodeEntry buscarExpedientePorNumeroConSolr(String numeroExpediente) {
+    /*private NodeEntry buscarExpedientePorNumeroConSolr(String numeroExpediente) {
         try {
             log.info("=== BÚSQUEDA CON SOLR ===");
             log.info("Número de expediente buscado: '{}'", numeroExpediente);
@@ -464,6 +539,76 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.error("Tipo de error: {}", e.getClass().getSimpleName());
             log.error("Mensaje de error: {}", e.getMessage());
             log.error("=== FIN ERROR SOLR ===", e);
+            throw new RuntimeException("No se pudo encontrar expediente: " + numeroExpediente, e);
+        }
+    }*/
+
+    private NodeEntry buscarExpedientePorNumeroConSolr(String numeroExpediente) {
+        try {
+            log.info("=== BÚSQUEDA COMPATIBLE CON AMBOS TIPOS ===");
+            log.info("Número de expediente buscado: '{}'", numeroExpediente);
+
+            // ESTRATEGIA 1: Buscar en nuevos expedientes (dms:expediente)
+            String query = "TYPE:\"dms:expediente\" AND @dms\\:numeroExpediente:\"" + numeroExpediente + "\"";
+            log.info("Query 1 (nuevos expedientes): '{}'", query);
+
+            SearchResponse results = alfrescoClient.searchLucene(query, 1, 0);
+            if (results != null && results.list() != null &&
+                    results.list().entries() != null && !results.list().entries().isEmpty()) {
+
+                String nodeId = results.list().entries().get(0).entry().id();
+                log.info("✓ Expediente NUEVO encontrado (dms:expediente): '{}'", nodeId);
+                return alfrescoClient.getNode(nodeId);
+            }
+
+            // ESTRATEGIA 2: Buscar en nuevos expedientes por nombre
+            log.info("Buscando nuevos expedientes por cm:name...");
+            query = "TYPE:\"dms:expediente\" AND cm:name:\"" + numeroExpediente + "\"";
+            log.info("Query 2 (nuevos por nombre): '{}'", query);
+
+            results = alfrescoClient.searchLucene(query, 1, 0);
+            if (results != null && results.list() != null &&
+                    results.list().entries() != null && !results.list().entries().isEmpty()) {
+
+                String nodeId = results.list().entries().get(0).entry().id();
+                log.info("✓ Expediente NUEVO encontrado por nombre: '{}'", nodeId);
+                return alfrescoClient.getNode(nodeId);
+            }
+
+            // ESTRATEGIA 3: COMPATIBILIDAD - Buscar expedientes antiguos (cm:folder)
+            log.info("Buscando expedientes ANTIGUOS (compatibilidad cm:folder)...");
+            query = "TYPE:\"cm:folder\" AND cm:name:\"" + numeroExpediente + "\"";
+            log.info("Query 3 (compatibilidad cm:folder): '{}'", query);
+
+            results = alfrescoClient.searchLucene(query, 1, 0);
+            if (results != null && results.list() != null &&
+                    results.list().entries() != null && !results.list().entries().isEmpty()) {
+
+                String nodeId = results.list().entries().get(0).entry().id();
+                log.info("✓ Expediente ANTIGUO encontrado (cm:folder): '{}'", nodeId);
+                return alfrescoClient.getNode(nodeId);
+            }
+
+            // ESTRATEGIA 4: Case-insensitive para ambos tipos
+            log.info("Última búsqueda case-insensitive...");
+            query = "(TYPE:\"dms:expediente\" OR TYPE:\"cm:folder\") AND cm:name:\"" +
+                    numeroExpediente.toLowerCase() + "\"";
+            log.info("Query 4 (case-insensitive combinada): '{}'", query);
+
+            results = alfrescoClient.searchLucene(query, 1, 0);
+            if (results != null && results.list() != null &&
+                    results.list().entries() != null && !results.list().entries().isEmpty()) {
+
+                String nodeId = results.list().entries().get(0).entry().id();
+                String tipo = results.list().entries().get(0).entry().nodeType();
+                log.info("✓ Expediente encontrado case-insensitive: '{}' (tipo: {})", nodeId, tipo);
+                return alfrescoClient.getNode(nodeId);
+            }
+
+            throw new AlfrescoException("Expediente no encontrado con ninguna estrategia: " + numeroExpediente);
+
+        } catch (Exception e) {
+            log.error("Error en búsqueda compatible: {}", e.getMessage());
             throw new RuntimeException("No se pudo encontrar expediente: " + numeroExpediente, e);
         }
     }
@@ -859,10 +1004,12 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.debug("Subcarpeta obtenida: {}", subcarpetaId);
 
             // Construir propiedades del documento (sin usar propiedades DMS por ahora)
-            Map<String, Object> propiedades = Map.of(
+            /*Map<String, Object> propiedades = Map.of(
                     "cm:title", request.nombreArchivo(),
                     "cm:description", request.descripcion() != null ? request.descripcion() : ""
-            );
+            );*/
+
+            Map<String, Object> propiedades = construirPropiedadesDocumento(request, expedienteId);
 
             // Subir archivo
             NodeEntry documentoNode = alfrescoClient.uploadFile(
@@ -880,6 +1027,35 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.error("Error subiendo documento: {}", e.getMessage(), e);
             throw new RuntimeException("Error al subir documento: " + e.getMessage(), e);
         }
+    }
+
+    private Map<String, Object> construirPropiedadesDocumento(UploadDocumentoRequest request, String expedienteId) {
+        Map<String, Object> properties = new HashMap<>();
+
+        // Propiedades estándar
+        properties.put("cm:title", request.nombreArchivo());
+        properties.put("cm:description", request.descripcion() != null ? request.descripcion() : "");
+
+        // Propiedades DMS obligatorias según tu modelo
+        properties.put("dms:tipoDocumento", request.tipoDocumento());
+        properties.put("dms:fechaDocumento", java.time.LocalDate.now().toString());
+
+        // Propiedades DMS opcionales
+        properties.put("dms:subcarpeta", request.subcarpeta());
+        properties.put("dms:expedienteId", expedienteId);
+        properties.put("dms:fechaSubida", java.time.OffsetDateTime.now().toString());
+        properties.put("dms:usuarioSubida", "system"); // O del contexto de seguridad
+
+        // Metadatos adicionales
+        if (request.metadatos() != null) {
+            request.metadatos().forEach((key, value) -> {
+                if (value != null && !value.trim().isEmpty()) {
+                    properties.put("dms:" + key, value);
+                }
+            });
+        }
+
+        return properties;
     }
 
     @Override
@@ -1030,12 +1206,45 @@ public class ExpedientesServiceImpl implements ExpedientesService {
     }
 
     private UploadResponseCompleto construirUploadResponse(NodeEntry documentoNode, UploadDocumentoRequest request) {
+        if (documentoNode == null || documentoNode.entry() == null) {
+            log.error("NodeEntry o su entry es null");
+            throw new RuntimeException("Error: Respuesta inválida de Alfresco");
+        }
+
         NodeEntry.Node node = documentoNode.entry();
+
+        log.info("=== DEBUG UPLOAD RESPONSE ===");
+        log.info("Node ID: '{}'", node.id());
+        log.info("Node name: '{}'", node.name());
+        log.info("Node type: '{}'", node.nodeType());
+
+        // Validar que los campos críticos no sean null
+        if (node.id() == null) {
+            log.error("CRÍTICO: node.id() es null en la respuesta de Alfresco");
+            // Intentar obtener el nodo recién creado
+            return construirResponseAlternativo(request);
+        }
 
         return new UploadResponseCompleto(
                 node.id(),
                 "1.0",
-                node.name(),
+                node.name() != null ? node.name() : request.nombreArchivo(),
+                request.subcarpeta(),
+                request.tipoDocumento(),
+                request.contenido().length,
+                request.mimeType(),
+                OffsetDateTime.now(),
+                "system"
+        );
+    }
+
+    private UploadResponseCompleto construirResponseAlternativo(UploadDocumentoRequest request) {
+        log.warn("Construyendo respuesta alternativa debido a NodeEntry con valores null");
+
+        return new UploadResponseCompleto(
+                "temp-" + System.currentTimeMillis(), // ID temporal
+                "1.0",
+                request.nombreArchivo(),
                 request.subcarpeta(),
                 request.tipoDocumento(),
                 request.contenido().length,

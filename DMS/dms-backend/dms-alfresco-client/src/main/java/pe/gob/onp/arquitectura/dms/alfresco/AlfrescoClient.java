@@ -49,8 +49,8 @@ public class AlfrescoClient {
         log.debug("parentId: {}", parentId);
         log.debug("name: {}", name);
         log.debug("properties: {}", properties);
-        //NodeBodyCreate body = new NodeBodyCreate(name, "cm:folder", properties);
-        NodeBodyCreate body = new NodeBodyCreate(name, "dms:expediente", properties);
+        NodeBodyCreate body = new NodeBodyCreate(name, "cm:folder", properties);
+        //NodeBodyCreate body = new NodeBodyCreate(name, "dms:expediente", properties);
         log.debug("body: {}", body);
         try {
             log.info("uri1: {}", API_V1 + "/nodes/{id}/children");
@@ -98,13 +98,37 @@ public class AlfrescoClient {
         };
         form.add("filedata", new HttpEntity<>(resource, fileHeaders));
 
-        return exchange(
+        NodeEntry result = exchange(
                 client.post()
                         .uri(API_V1 + "/nodes/{id}/children?autoRename=true", parentId)
                         .contentType(MediaType.MULTIPART_FORM_DATA)
                         .body(BodyInserters.fromMultipartData(form)),
                 NodeEntry.class
         ).block();
+
+        // VALIDACIÓN ADICIONAL: Si el resultado tiene campos null, buscar el archivo
+        if (result != null && result.entry() != null && result.entry().id() == null) {
+            log.warn("Upload exitoso pero respuesta con ID null, buscando archivo recién subido...");
+            try {
+                // Buscar el archivo que acabamos de subir
+                NodeChildrenList children = getNodeChildren(parentId, null);
+                if (children != null && children.getList() != null && children.getList().getEntries() != null) {
+                    var recienSubido = children.getList().getEntries().stream()
+                            .filter(entry -> filename.equals(entry.getEntry().name()))
+                            .findFirst();
+
+                    if (recienSubido.isPresent()) {
+                        String nodeId = recienSubido.get().getEntry().id();
+                        log.info("Archivo encontrado por búsqueda posterior: {}", nodeId);
+                        return getNode(nodeId);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("No se pudo buscar el archivo recién subido: {}", e.getMessage());
+            }
+        }
+
+        return result;
     }
 
     public SearchResponse searchLucene(String luceneQuery, int maxItems, int skip) {
@@ -764,6 +788,35 @@ public class AlfrescoClient {
         } catch (Exception e) {
             log.error("Error obteniendo hijos paginados de {}: {}", parentId, e.getMessage());
             throw new AlfrescoException("Error en paginación: " + e.getMessage(), e);
+        }
+    }
+
+    public NodeEntry createExpediente(String parentId, String name, Map<String, Object> properties) {
+        log.info("Creando expediente DMS");
+        log.debug("parentId: {}", parentId);
+        log.debug("name: {}", name);
+        log.debug("properties: {}", properties);
+
+        // USAR TIPO DMS:EXPEDIENTE para nuevos expedientes
+        NodeBodyCreate body = new NodeBodyCreate(name, "dms:expediente", properties);
+        log.debug("body: {}", body);
+
+        try {
+            log.info("uri: {}", API_V1 + "/nodes/{id}/children");
+            return exchange(
+                    client.post().uri(API_V1 + "/nodes/{id}/children", parentId)
+                            .contentType(MediaType.APPLICATION_JSON).bodyValue(body),
+                    NodeEntry.class
+            ).block();
+        } catch (AlfrescoException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Duplicate child name not allowed")) {
+                log.warn("Expediente '{}' ya existe en parent '{}', buscando existente", name, parentId);
+                String existingId = findChildIdByName(parentId, name);
+                if (existingId != null) {
+                    return getNode(existingId);
+                }
+            }
+            throw e;
         }
     }
 }
