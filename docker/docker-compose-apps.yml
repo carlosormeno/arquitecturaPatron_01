@@ -135,6 +135,15 @@ services:
       - ALFRESCO_USER=${ALFRESCO_ADMIN_USER}
       - ALFRESCO_PASSWORD=${ALFRESCO_ADMIN_PASSWORD}
 
+      # AGREGAR CONFIGURACIÓN S3 AQUÍ:
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-dms-storage}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-minioadmin}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-minioadmin123}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-http://minio:9000}
+      - S3_USE_PATH_STYLE=${S3_USE_PATH_STYLE:-true}
+      - STORAGE_MODE=${STORAGE_MODE:-hybrid}
+
       # JVM Options
       - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC
     volumes:

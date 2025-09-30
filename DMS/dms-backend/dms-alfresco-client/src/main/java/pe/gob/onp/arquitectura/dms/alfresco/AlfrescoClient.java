@@ -819,4 +819,32 @@ public class AlfrescoClient {
             throw e;
         }
     }
+
+    /**
+     * Crea un documento en Alfresco SOLO con metadatos, sin contenido binario
+     */
+    public NodeEntry createDocumentMetadata(String parentId, String name, Map<String, Object> properties) {
+        log.info("Creando metadatos de documento: parentId={}, name={}", parentId, name);
+
+        // Usar tipo dms:documento pero SIN subir archivo
+        NodeBodyCreate body = new NodeBodyCreate(name, "dms:documento", properties);
+
+        try {
+            return exchange(
+                    client.post().uri(API_V1 + "/nodes/{id}/children", parentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .bodyValue(body),
+                    NodeEntry.class
+            ).block();
+        } catch (AlfrescoException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Duplicate child name not allowed")) {
+                log.warn("Documento '{}' ya existe, buscando existente", name);
+                String existingId = findChildIdByName(parentId, name);
+                if (existingId != null) {
+                    return getNode(existingId);
+                }
+            }
+            throw e;
+        }
+    }
 }

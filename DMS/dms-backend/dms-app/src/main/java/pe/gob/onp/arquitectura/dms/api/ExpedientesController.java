@@ -3,9 +3,11 @@ package pe.gob.onp.arquitectura.dms.api;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.DigestUtils;
 import pe.gob.onp.arquitectura.dms.alfresco.AlfrescoClient;
 import pe.gob.onp.arquitectura.dms.api.dto.ExpedienteDtos.*;
 import pe.gob.onp.arquitectura.dms.service.ExpedientesService;
+import pe.gob.onp.arquitectura.dms.service.impl.HybridDownloadService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +22,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import pe.gob.onp.arquitectura.dms.alfresco.dto.NodeEntry;
+import pe.gob.onp.arquitectura.dms.service.impl.HybridDownloadService;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 @RestController
 @RequestMapping("/expedientes")
@@ -28,10 +34,12 @@ public class ExpedientesController {
     private final ExpedientesService svc;
     private final AlfrescoClient alfrescoClient;
     private static final Logger log = LoggerFactory.getLogger(ExpedientesController.class);
+    private final HybridDownloadService hybridDownloadService;
 
-    public ExpedientesController(ExpedientesService svc, AlfrescoClient alfrescoClient) {
+    public ExpedientesController(ExpedientesService svc, AlfrescoClient alfrescoClient, HybridDownloadService hybridDownloadService) {
         this.svc = svc;
         this.alfrescoClient = alfrescoClient;
+        this.hybridDownloadService = hybridDownloadService;
     }
 
     @PostMapping
@@ -154,25 +162,25 @@ public class ExpedientesController {
 
         log.info("GET /expedientes/{}/documentos/{}/download", expedienteId, documentoId);
 
-        try {
+        /*try {
             NodeEntry documentoNode = alfrescoClient.getNode(documentoId);
-            byte[] contenido = alfrescoClient.downloadFile(documentoId);
+            Map<String, Object> props = documentoNode.entry().properties();
 
-            ByteArrayResource resource = new ByteArrayResource(contenido);
+            // NUEVA LÓGICA HÍBRIDA
+            String tipoAlmacenamiento = getStringProperty(props, "dms:tipoAlmacenamiento", "ALFRESCO");
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(
-                    documentoNode.entry().content() != null ?
-                            documentoNode.entry().content().mimeType() : "application/octet-stream"));
-            headers.setContentLength(contenido.length);
-            headers.setContentDispositionFormData("attachment", documentoNode.entry().name());
-
-            return ResponseEntity.ok().headers(headers).body(resource);
+            if ("S3".equals(tipoAlmacenamiento)) {
+                return downloadFromS3(documentoNode, props);
+            } else {
+                // Descarga original de Alfresco (documentos existentes)
+                return downloadFromAlfresco(documentoId, documentoNode);
+            }
 
         } catch (Exception e) {
             log.error("Error descargando documento {}: {}", documentoId, e.getMessage(), e);
             throw new RuntimeException("Error al descargar documento: " + e.getMessage(), e);
-        }
+        }*/
+        return hybridDownloadService.downloadDocument(documentoId);
     }
 
     @GetMapping("/{expedienteId}/subcarpetas")
@@ -180,6 +188,68 @@ public class ExpedientesController {
     public List<SubcarpetaInfo> getSubcarpetas(@PathVariable("expedienteId") String expedienteId) {
         log.info("GET /expedientes/{}/subcarpetas", expedienteId);
         return svc.getSubcarpetas(expedienteId);
+    }
+
+    /*private ResponseEntity<Resource> downloadFromAlfresco(String documentoId, NodeEntry documentoNode) {
+        byte[] contenido = alfrescoClient.downloadFile(documentoId);
+        ByteArrayResource resource = new ByteArrayResource(contenido);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(
+                documentoNode.entry().content() != null ?
+                        documentoNode.entry().content().mimeType() : "application/octet-stream"));
+        headers.setContentLength(contenido.length);
+        headers.setContentDispositionFormData("attachment", documentoNode.entry().name());
+
+        return ResponseEntity.ok().headers(headers).body(resource);
+    }*/
+
+    /*private ResponseEntity<Resource> downloadFromS3(NodeEntry documentoNode, Map<String, Object> props) {
+        String s3Key = getStringProperty(props, "dms:s3Key", null);
+        String bucket = getStringProperty(props, "dms:s3Bucket", bucketName);
+
+        if (s3Key == null) {
+            throw new RuntimeException("Documento sin referencia S3 válida");
+        }
+
+        try {
+            // Descargar de S3
+            ResponseBytes<GetObjectResponse> s3Object = s3Client.getObjectAsBytes(
+                    GetObjectRequest.builder().bucket(bucket).key(s3Key).build()
+            );
+
+            // Verificar integridad
+            String expectedHash = getStringProperty(props, "dms:contentHash", null);
+            if (expectedHash != null) {
+                String actualHash = DigestUtils.sha256Hex(s3Object.asByteArray());
+                if (!expectedHash.equals(actualHash)) {
+                    log.error("Hash mismatch para documento {}: expected={}, actual={}",
+                            documentoNode.entry().id(), expectedHash, actualHash);
+                    throw new RuntimeException("Error de integridad del archivo");
+                }
+            }
+
+            ByteArrayResource resource = new ByteArrayResource(s3Object.asByteArray());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(
+                    s3Object.response().contentType() != null ?
+                            s3Object.response().contentType() : "application/octet-stream"));
+            headers.setContentLength(s3Object.asByteArray().length);
+            headers.setContentDispositionFormData("attachment", documentoNode.entry().name());
+
+            return ResponseEntity.ok().headers(headers).body(resource);
+
+        } catch (Exception e) {
+            log.error("Error descargando de S3: key={}, bucket={}", s3Key, bucket, e);
+            throw new RuntimeException("Error accediendo a S3: " + e.getMessage(), e);
+        }
+    }*/
+
+    // Método auxiliar que ya tienes en ExpedientesServiceImpl
+    private String getStringProperty(Map<String, Object> properties, String key, String defaultValue) {
+        Object value = properties.get(key);
+        return value != null ? value.toString() : defaultValue;
     }
 
 }

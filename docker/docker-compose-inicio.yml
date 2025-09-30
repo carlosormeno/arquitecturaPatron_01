@@ -169,6 +169,8 @@ services:
       - datahub_postgres_data:/governance/datahub-postgres
       - datahub_elasticsearch_data:/governance/datahub-elasticsearch
 
+      # ========= AWS S3 =========
+      - minio_data:/aws/aws_s3
 
 
     deploy:
@@ -727,6 +729,13 @@ volumes:
     labels:
       - "com.docker.compose.project=infrastructure"
       - "description=DataHub Elasticsearch data"
+
+  # ========== AWS S3 ==========
+  minio_data:
+    name: minio_data
+    labels:
+      - "com.docker.compose.project=infrastructure"
+      - "description=S3 data"
 
 # ============================================
 # INFORMACIÓN Y USO

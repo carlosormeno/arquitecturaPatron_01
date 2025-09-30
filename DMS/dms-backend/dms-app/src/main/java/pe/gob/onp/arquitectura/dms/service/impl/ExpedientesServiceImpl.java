@@ -31,6 +31,8 @@ import java.util.ArrayList;
 @Service
 public class ExpedientesServiceImpl implements ExpedientesService {
 
+    private final HybridStorageService hybridStorageService;
+
     // Agregar esta constante al inicio de la clase
     private static final String REPOSITORIO_ID = "02dbd884-06fe-41a2-9bd8-8406fef1a234";
 
@@ -96,10 +98,12 @@ public class ExpedientesServiceImpl implements ExpedientesService {
 
     public ExpedientesServiceImpl(
             AlfrescoClient alfrescoClient,
+            HybridStorageService hybridStorageService,
             //@Value("${app.alfresco.root-path:/Repository}") String rootPath
             @Value("${app.alfresco.root-path:}") String rootPath
     ) {
         this.alfrescoClient = alfrescoClient;
+        this.hybridStorageService = hybridStorageService;
         this.rootPath = rootPath;
 
         // DEBUG: Verificar estructura al inicializar
@@ -986,7 +990,7 @@ public class ExpedientesServiceImpl implements ExpedientesService {
         return new CarpetaBase(nombre, descripcion, 0);
     }
 
-    @Override
+    /*@Override
     public UploadResponseCompleto uploadDocumento(String expedienteId, UploadDocumentoRequest request) {
         try {
             log.info("Subiendo documento - Expediente: {}, Archivo: {}, Subcarpeta: {}",
@@ -1004,10 +1008,10 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.debug("Subcarpeta obtenida: {}", subcarpetaId);
 
             // Construir propiedades del documento (sin usar propiedades DMS por ahora)
-            /*Map<String, Object> propiedades = Map.of(
+            ---------------Map<String, Object> propiedades = Map.of(
                     "cm:title", request.nombreArchivo(),
                     "cm:description", request.descripcion() != null ? request.descripcion() : ""
-            );*/
+            );----------------
 
             Map<String, Object> propiedades = construirPropiedadesDocumento(request, expedienteId);
 
@@ -1027,7 +1031,7 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             log.error("Error subiendo documento: {}", e.getMessage(), e);
             throw new RuntimeException("Error al subir documento: " + e.getMessage(), e);
         }
-    }
+    }*/
 
     private Map<String, Object> construirPropiedadesDocumento(UploadDocumentoRequest request, String expedienteId) {
         Map<String, Object> properties = new HashMap<>();
@@ -1333,6 +1337,24 @@ public class ExpedientesServiceImpl implements ExpedientesService {
             return "";
         }
         return nombreArchivo.substring(nombreArchivo.lastIndexOf("."));
+    }
+
+    @Override
+    public UploadResponseCompleto uploadDocumento(String expedienteId, UploadDocumentoRequest request) {
+        try {
+            log.info("Subiendo documento híbrido - Expediente: {}, Archivo: {}, Subcarpeta: {}",
+                    expedienteId, request.nombreArchivo(), request.subcarpeta());
+
+            // Validaciones
+            validarRequestUpload(request);
+
+            // Usar el servicio híbrido
+            return hybridStorageService.storeDocument(expedienteId, request);
+
+        } catch (Exception e) {
+            log.error("Error subiendo documento híbrido: {}", e.getMessage(), e);
+            throw new RuntimeException("Error al subir documento: " + e.getMessage(), e);
+        }
     }
 
 }

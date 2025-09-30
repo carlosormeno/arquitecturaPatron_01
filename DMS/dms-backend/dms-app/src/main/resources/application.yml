@@ -41,3 +41,16 @@ logging:
     org.springframework.web.servlet.DispatcherServlet: DEBUG
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+# Agregar configuración S3
+s3:
+  bucket:
+    name: ${S3_BUCKET_NAME:dms-storage}
+
+aws:
+  region: ${AWS_REGION:us-east-1}
+  s3:
+    endpoint-url: ${S3_ENDPOINT_URL:}
+    use-path-style: ${S3_USE_PATH_STYLE:true}
+
+storage:
+  mode: ${STORAGE_MODE:hybrid}  # alfresco|s3|hybrid
