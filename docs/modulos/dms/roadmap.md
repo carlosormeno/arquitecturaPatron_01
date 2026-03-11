@@ -12,11 +12,11 @@ Plan dividido en 4 sprints (1–2 semanas cada uno). Al final de Sprint 3 se esp
 
 ### Tareas
 - Crear proyecto Spring Boot DMS (starter web, security, actuator, prometheus, openapi).  
-- Configurar OAuth2 Resource Server → integración con Keycloak vía Kong.  
+- Configurar OAuth2 Resource Server → integración con Keycloak vía la capa de API Management.  
 - Publicar endpoints de health, metrics y Swagger UI.  
 - Integrar con Prometheus/Grafana y Jaeger.  
 - Dockerizar el servicio y conectarlo a la red `apps`.  
-- Configurar NGINX/Kong para enrutar `/api/documents/*` al DMS.  
+- Configurar `NGINX + API Manager` para enrutar `/api/documents/*` al DMS.  
 - Crear roles de DB (`app_role`, `dba_readonly`) y esquema `audit`.
 
 ✅ **Entregable:** DMS desplegado en Docker, protegido por JWT, visible en Swagger, con métricas y health.

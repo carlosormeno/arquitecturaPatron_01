@@ -1,5 +1,19 @@
 # Guía Completa para Levantar la Arquitectura Docker
 
+## Documentación
+
+La documentación del proyecto fue reorganizada para separar arquitectura, operación y módulos.
+
+- Índice principal: [docs/README.md](/Users/carlosormenosalazar/GitHub/arquitecturaPatron_01/docs/README.md)
+- Documentación operativa Docker: [docs/operaciones/docker/README.md](/Users/carlosormenosalazar/GitHub/arquitecturaPatron_01/docs/operaciones/docker/README.md)
+- Arquitectura y diagramas: [docs/arquitectura](/Users/carlosormenosalazar/GitHub/arquitecturaPatron_01/docs/arquitectura)
+
+> Estado arquitectónico actual:
+> En la primera fase del proyecto se evaluó e implementó `Kong` como API Gateway.
+> La decisión vigente a nivel de arquitectura es reemplazarlo por `WSO2 API Manager`.
+> Mientras se completa la migración técnica, parte del código y de algunos `docker-compose` todavía referencia `Kong`.
+> `Nginx Edge` se mantiene como reverse proxy en ambos escenarios.
+
 ## 🚀 Secuencia de Levantado
 
 ### FASE 0: Infraestructura Base (OBLIGATORIO PRIMERO)
@@ -26,9 +40,9 @@ docker compose -f docker-compose-base.yml up -d
 docker compose -f docker-compose-base.yml ps
 ```
 
-#### IMPORTANTE: Configurar Kong Database (SOLO UNA VEZ)
+#### IMPORTANTE: Configuración histórica de Kong (solo si se levanta el stack legado)
 ```bash
-# Ejecutar migraciones de Kong (SOLO LA PRIMERA VEZ)
+# Ejecutar migraciones de Kong (SOLO para el stack legado de la primera fase)
 docker run --rm \
   --network gateway_network \
   -e KONG_DATABASE=postgres \
@@ -39,10 +53,16 @@ docker run --rm \
 
 ### FASE 2: Gateway y Proxy
 ```bash
-# Levantar NGINX y Kong
+# Estado de transición documental:
+# - Fase inicial: NGINX + Kong
+# - Fase objetivo: NGINX + WSO2 API Manager
+# Este README conserva el flujo original mientras se actualizan los artefactos técnicos.
+
+# Levantar stack de gateway
 docker compose -f docker-compose-gateway.yml up -d
 
-# Verificar Kong
+# Verificar gateway actual configurado en tu entorno
+# Kong legado:
 curl http://localhost:8001/status
 ```
 

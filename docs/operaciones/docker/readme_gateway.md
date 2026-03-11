@@ -456,3 +456,157 @@ Internet/Clients
 3. **Configurar métricas** en Grafana
 4. **Implementar circuit breaker** patterns
 5. **Configurar API versioning** strategies
+
+
+
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# FASE 2 - Considerando WSO2 en reemplazo de Kong
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# 🌐 Stack de Gateway - Nginx Edge y WSO2 API Manager
+
+## 🎯 Descripción General
+
+El `docker-compose-gateway.yml` representa la capa de acceso del ecosistema.
+
+La evolución arquitectónica de esta capa ha sido:
+
+- **Fase 1:** `Nginx Edge + Kong`
+- **Fase actual objetivo:** `Nginx Edge + WSO2 API Manager`
+
+La decisión actual del proyecto es usar `WSO2 API Manager` como plataforma principal de API Management, manteniendo `Nginx Edge` como reverse proxy en el borde. `Kong` queda documentado como solución evaluada e implementada inicialmente, pero ya no como target de arquitectura.
+
+## 🧭 Decisión Arquitectónica
+
+### Estado histórico
+- `Kong` fue adoptado en una primera fase por simplicidad operativa y rapidez de adopción.
+- Permitió validar routing, exposición de APIs, autenticación y observabilidad del gateway.
+
+### Estado objetivo
+- `WSO2 API Manager` reemplaza a `Kong` como API Gateway/API Management.
+- `Nginx Edge` se conserva para el rol de reverse proxy, terminación TLS y capa edge.
+
+### Arquitectura objetivo
+```text
+Clientes / Navegadores
+        ↓
+   Nginx Edge
+        ↓
+WSO2 API Manager
+        ↓
+Microservicios / DMS / APIs internas
+```
+
+## 🚪 Componentes de la Capa
+
+### 🌍 Edge Layer
+- **Nginx Edge** - Reverse proxy, terminación TLS, headers, routing de borde
+
+### 🔗 API Management Layer
+- **WSO2 API Manager** - Publicación, seguridad, políticas, rate limiting, subscriptions y gobierno de APIs
+
+### 🕰️ Componente legado
+- **Kong** - Gateway de la primera fase, mantenido solo como referencia histórica durante la migración
+
+## 🔌 Puertos Esperados
+
+Los puertos exactos quedarán definidos cuando se actualice el `docker-compose` de gateway a WSO2. A nivel documental, la separación esperada es:
+
+| Componente | Uso |
+|------------|-----|
+| `Nginx Edge` | Entrada pública HTTP/HTTPS |
+| `WSO2 Gateway` | Exposición de APIs |
+| `WSO2 Publisher/Admin/DevPortal` | Gestión, publicación y consumo de APIs |
+
+## 🔐 Roles de Cada Componente
+
+### Nginx Edge
+- Reverse proxy de entrada
+- Terminación TLS
+- Control de headers y rutas públicas
+- Exposición de frontend y APIs
+- Posible integración futura con WAF/LB
+
+### WSO2 API Manager
+- Publicación y versionado de APIs
+- Políticas de seguridad
+- OAuth2/OIDC para APIs
+- Rate limiting, quotas y subscriptions
+- Portal de desarrolladores
+- Analítica y gobierno de APIs
+
+## 🔄 Integración con Keycloak
+
+La línea arquitectónica actual es mantener `Keycloak` como proveedor de identidad y federar/autenticar APIs a través de `WSO2 API Manager`.
+
+Flujo esperado:
+
+```text
+Usuario → Frontend → Keycloak → Token JWT/OIDC → WSO2 APIM → Backend
+```
+
+## 🚀 Casos de Uso Objetivo con WSO2
+
+### 1. Publicación de APIs
+- Publicar `command-service`, `query-service` y `dms-service`
+- Versionar APIs por dominio
+- Exponer políticas por consumidor o aplicación
+
+### 2. Seguridad de APIs
+- Validación de JWT emitidos por `Keycloak`
+- Enforzar scopes/claims/roles
+- Aplicar throttling por API o suscriptor
+
+### 3. Gobernanza
+- Portal de desarrolladores
+- Ciclo de vida de APIs
+- Catálogo y publicación controlada
+
+## 🧱 Impacto en la Arquitectura
+
+### Lo que se mantiene
+- `Nginx Edge`
+- `Keycloak`
+- Microservicios Spring Boot
+- Observabilidad
+- Frontend Angular
+- DMS y Alfresco
+
+### Lo que cambia
+- Sale `Kong`
+- Entra `WSO2 API Manager`
+- Se rediseña la configuración de rutas, políticas y publicación de APIs
+
+### Lo que no cambia conceptualmente
+- La existencia de una capa edge
+- La existencia de una capa de API Management
+- La separación entre autenticación (`Keycloak`) y gobierno de APIs (`WSO2`)
+
+## 🔗 Dependencias
+
+### Prerequisitos
+- `docker-compose-base.yml`
+- `docker-compose-identity.yml`
+- `docker-compose-apps.yml`
+
+### Integraciones principales
+- `Nginx Edge` con frontend y rutas externas
+- `WSO2 API Manager` con APIs de microservicios
+- `Keycloak` como IdP
+- `Observability` para logs, métricas y trazas del gateway
+
+## 📝 Estado de Migración
+
+Actualmente:
+- La **documentación objetivo** ya considera `WSO2 API Manager`
+- Parte del **código, compose y configuración** todavía referencia `Kong`
+- La migración técnica se realizará en una siguiente fase
+
+## 🎯 Próximos Pasos
+
+1. Actualizar `docker-compose-gateway.yml` para reemplazar `Kong` por `WSO2`
+2. Ajustar `nginx` para enrutar hacia `WSO2` en lugar de `Kong`
+3. Actualizar métricas, health checks y logs del gateway
+4. Reescribir ejemplos operativos y de publicación de APIs con `WSO2`
+5. Retirar referencias legacy a `Kong` una vez completada la migración técnica
+

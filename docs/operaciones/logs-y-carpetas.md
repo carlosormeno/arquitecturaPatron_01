@@ -42,7 +42,8 @@ logs/
 ├── keycloak/
 │   ├── app/
 │   └── db/
-├── kong/
+├── kong/              # legado de la primera fase
+├── wso2/              # API Manager objetivo actual
 ├── mongodb/
 ├── nifi/
 │   ├── app/
@@ -58,6 +59,18 @@ logs/
 ├── trivy/
 ├── zookeeper/
 ```
+
+## Comando para Crear la Carpeta `logs`
+
+```bash
+mkdir -p logs/{airflow/{webserver,scheduler,postgres},alfresco/{repo,share,solr,activemq,postgres,sfs,transform,content-app},argocd,command-service,datahub/{backend,frontend,postgres},falco,frontend,gorules/{editor,brms},harbor/{core,jobservice,registry,db,redis},kafka,keycloak/{app,db},kong,wso2,mongodb,nifi/{app,registry},nginx-edge,owasp-zap,otel-collector,postgres,qwiet,query-service,snyk,sonarqube,trivy,zookeeper}
+```
+
+Este comando crea toda la estructura base de carpetas para centralizar los logs del proyecto.
+
+> Nota:
+> `logs/kong` se conserva por trazabilidad de la primera fase del proyecto.
+> La carpeta `logs/wso2` corresponde a la plataforma objetivo actual de API Management.
 
 ## Otras Carpetas y Archivos de Configuración
 

@@ -1,5 +1,10 @@
 # 📦 Stack Base - Infraestructura Fundamental
 
+> Nota de transición:
+> `kong-db` pertenece a la primera fase del proyecto, en la que `Kong` fue el API Gateway evaluado e implementado.
+> La arquitectura objetivo actual reemplaza esa capa por `WSO2 API Manager`.
+> Mientras no se complete la migración técnica, esta base mantiene la base de datos de `Kong` como componente legado.
+
 ## 🎯 Descripción General
 
 El **docker-compose-base.yml** contiene la infraestructura fundamental que sustenta todo el stack tecnológico. Incluye bases de datos principales, sistema de mensajería y servicios de integración core.
@@ -9,7 +14,7 @@ El **docker-compose-base.yml** contiene la infraestructura fundamental que suste
 ### 📊 **Bases de Datos**
 - **PostgreSQL** - Base de datos relacional principal
 - **MongoDB** - Base de datos NoSQL para consultas
-- **Kong-DB** - Base de datos para API Gateway
+- **Kong-DB** - Base de datos del gateway legado de la primera fase
 
 ### 📨 **Sistema de Mensajería**
 - **Apache Zookeeper** - Coordinación distribuida
@@ -185,6 +190,9 @@ docker exec kafka kafka-consumer-groups --bootstrap-server localhost:9092 --list
 ```
 
 ## ⚠️ CONFIGURACIÓN INICIAL DE KONG
+
+Esta sección se mantiene solo como referencia histórica para el stack legado.
+No aplica cuando el gateway activo sea `WSO2 API Manager`.
 
 ### 🔑 **Migraciones de Kong (OBLIGATORIO)**
 

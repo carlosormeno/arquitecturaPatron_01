@@ -345,35 +345,47 @@ curl http://localhost:8081/actuator/prometheus | grep productos_created_total
 
 ## 🏗️ Arquitectura del Sistema
 
-### 📐 **Patrón CQRS Implementado**
-```
-┌─────────────────┐    ┌─────────────────┐
-│    Frontend     │    │   API Gateway   │
-│   (Angular)     │◄──►│     (Kong)      │
-└─────────────────┘    └─────────────────┘
-                                │
-                ┌───────────────┼───────────────┐
-                │               │               │
-        ┌───────▼──────┐       │       ┌──────▼───────┐
-        │   Command    │       │       │    Query     │
-        │ Microservice │       │       │ Microservice │
-        │ (Write Side) │       │       │ (Read Side)  │
-        └──────┬───────┘       │       └──────┬───────┘
-               │               │              │
-        ┌──────▼───────┐       │       ┌──────▼───────┐
-        │ PostgreSQL   │       │       │  MongoDB     │
-        │ (ACID Writes)│       │       │ (Fast Reads) │
-        └──────┬───────┘       │       └──────────────┘
-               │               │              ▲
-        ┌──────▼───────┐    ┌──▼──────┐      │
-        │   Debezium   │───►│  Kafka  │──────┘
-        │    (CDC)     │    │ Events  │
-        └──────────────┘    └─────────┘
+### 📐 **Vista Resumida de la Arquitectura**
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│ CAPA DE PRESENTACION                                             │
+│ Angular | Alfresco Share | Content App | Grafana | Kibana        │
+│ Kafdrop | Portainer | Gitea | Jenkins | Harbor | Nexus           │
+└──────────────────────────────────────────────────────────────────┘
+                               │
+┌──────────────────────────────────────────────────────────────────┐
+│ CAPA EDGE                                                       │
+│ Nginx Edge                                                      │
+└──────────────────────────────────────────────────────────────────┘
+                               │
+┌──────────────────────────────────────────────────────────────────┐
+│ CAPA API MANAGEMENT                                             │
+│ WSO2 API Manager                                                │
+└──────────────────────────────────────────────────────────────────┘
+                               │
+          ┌────────────────────┼─────────────────────┐
+          │                    │                     │
+┌──────────────────┐  ┌──────────────────┐  ┌─────────────────────┐
+│ Command Service  │  │ Query Service    │  │ DMS Service         │
+│ Spring Boot      │  │ Spring Boot      │  │ Spring Boot         │
+└────────┬─────────┘  └────────┬─────────┘  └──────────┬──────────┘
+         │                     │                       │
+    PostgreSQL             MongoDB                Alfresco Stack
+         │                     ▲                (Repo, Solr, SFS,
+         ▼                     │                 Transform, MQ)
+     Debezium ─────────────► Kafka
+
+OBSERVABILIDAD: Prometheus | Grafana | Jaeger | OTEL | Loki | ELK
+SEGURIDAD: Keycloak | SonarQube | ZAP | Trivy | Falco | OPA
+DEVOPS: Docker Compose | Gitea | Jenkins | Harbor | Nexus
+DATAPLATFORM: NiFi | DataHub | Airflow | GoRules
 ```
 
+> Para una vista ASCII más completa por capas, revisar [capas-ascii.md](/Users/carlosormenosalazar/GitHub/arquitecturaPatron_01/docs/arquitectura/capas-ascii.md).
+
 ### 🔄 **Flujo de Datos**
-1. **Frontend** envía comando → **Kong Gateway**
-2. **Kong** rutea → **Command Microservice**
+1. **Frontend** envía comando → **WSO2 API Manager**
+2. **WSO2** rutea → **Command Microservice**
 3. **Command** valida y persiste → **PostgreSQL**
 4. **Debezium** captura cambios → **Kafka**
 5. **Query Microservice** consume eventos → actualiza **MongoDB**
@@ -383,7 +395,7 @@ curl http://localhost:8081/actuator/prometheus | grep productos_created_total
 
 ### Prerequisitos:
 - `docker-compose-base.yml` (PostgreSQL, MongoDB, Kafka)
-- `docker-compose-gateway.yml` (Kong API Gateway)
+- `docker-compose-gateway.yml` (capa gateway; historicamente Kong, objetivo actual WSO2 API Manager)
 
 ### Opcional pero recomendado:
 - `docker-compose-observability.yml` (métricas y logs)

@@ -14,9 +14,13 @@
 ---
 
 # 1. Contexto General
-Proyecto de arquitectura TI con Docker en Linux, que integra Alfresco Community 25.2, Keycloak 26.0.5, Kong, NGINX Edge, microservicios en Spring Boot, PostgreSQL, MongoDB, Kafka/Zookeeper y observabilidad con Prometheus, Grafana, Jaeger y cAdvisor.
+Proyecto de arquitectura TI con Docker en Linux, que integra Alfresco Community 25.2, Keycloak 26.0.5, NGINX Edge, una capa de API Management, microservicios en Spring Boot, PostgreSQL, MongoDB, Kafka/Zookeeper y observabilidad con Prometheus, Grafana, Jaeger y cAdvisor.
 
-Decisión central: introducir un **Document Management Service (DMS)** como capa intermedia de dominio frente a Alfresco, detrás de Kong+Keycloak, con contratos propios, auditoría robusta y soporte de multi-plantillas.
+Evolución de la capa gateway:
+- **Fase 1:** `Kong` fue la solución evaluada e implementada inicialmente.
+- **Fase actual objetivo:** `WSO2 API Manager` reemplaza a `Kong` como plataforma principal de API Management.
+
+Decisión central: introducir un **Document Management Service (DMS)** como capa intermedia de dominio frente a Alfresco, detrás de `Nginx Edge + API Management + Keycloak`, con contratos propios, auditoría robusta y soporte de multi-plantillas.
 
 ---
 
@@ -96,7 +100,7 @@ Swagger UI disponible con `bearerAuth` y (opcional) `oauth2`.
 5. Configurar anclaje externo de auditoría.  
 6. Activar `pgaudit` y scraping Prometheus.  
 7. Parametrizar jobs de backup según políticas.  
-8. Configurar rutas NGINX/Kong para `/api/documents/*`.
+8. Configurar rutas `NGINX + API Manager` para `/api/documents/*`.
 
 ---
 

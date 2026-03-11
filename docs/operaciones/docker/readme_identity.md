@@ -457,7 +457,13 @@ User → Frontend App → Keycloak (Auth) → JWT Token → Backend API
                    (LDAP/DB/Social)
 ```
 
-### Integración con Kong
+### Integración con la Capa de API Management
+
+> Histórico:
+> En la primera fase esta integración se planteó con `Kong`.
+> La arquitectura objetivo actual reemplaza esa integración por `WSO2 API Manager`, manteniendo `Keycloak` como proveedor de identidad.
+
+### Ejemplo histórico con Kong
 ```bash
 # Configurar Kong con OIDC plugin
 curl -X POST http://localhost:8001/plugins \
@@ -472,7 +478,7 @@ curl -X POST http://localhost:8001/plugins \
 - `docker-compose-base.yml` (redes base)
 
 ### Integra con:
-- `docker-compose-gateway.yml` (protección de APIs)
+- `docker-compose-gateway.yml` (protección de APIs; fase 1 con Kong, fase objetivo con WSO2 APIM)
 - `docker-compose-apps.yml` (autenticación de microservicios)
 - `docker-compose-observability.yml` (métricas de autenticación)
 
